@@ -1,0 +1,760 @@
+@layer components {
+
+  /* ==========================================================================
+     1. SIDEBAR NAVIGATION
+     ========================================================================== */
+  .sidebar {
+    position: relative;
+    width: var(--sidebar-width);
+    background: transparent;
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    flex-direction: column;
+    z-index: 10;
+  }
+
+  .sidebar-brand {
+    padding: 24px 20px 18px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  .sidebar-logo {
+    width: 40px;
+    height: 40px;
+    background-color: var(--accent);
+    color: #000;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 20px;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  .sidebar-eyebrow {
+    font-family: 'Outfit', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    text-shadow: 0 0 16px rgba(217, 119, 6, 0.4);
+    margin-bottom: 3px;
+  }
+
+  .sidebar-name {
+    font-family: 'Outfit', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    color: #f8fafc;
+    letter-spacing: -0.015em;
+    margin: 0;
+  }
+
+  .sidebar-nav {
+    flex: 1;
+    padding: 8px 12px 16px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sidebar-section {
+    font-family: 'Outfit', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(148, 163, 184, 0.3);
+    padding: 16px 8px 6px;
+    margin: 0;
+  }
+
+  .sidebar-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 9px 12px;
+    border-radius: 9px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: #64748b;
+    text-decoration: none;
+    margin-bottom: 2px;
+    border: 1px solid transparent;
+    transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.12s ease;
+  }
+
+  .sidebar-item svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    transition: color 0.18s ease;
+    opacity: 0.5;
+  }
+
+  .sidebar-item:hover {
+    background-color: rgba(255, 255, 255, 0.04);
+    color: #cbd5e1;
+    border-color: rgba(255, 255, 255, 0.04);
+  }
+
+  .sidebar-item:hover svg {
+    opacity: 1;
+    color: var(--accent);
+  }
+
+  .sidebar-item.active {
+    background: linear-gradient(135deg, rgba(217, 119, 6, 0.12) 0%, rgba(217, 119, 6, 0.06) 100%);
+    color: #f8fafc;
+    font-weight: 600;
+    border: 1px solid rgba(217, 119, 6, 0.18);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .sidebar-item.active svg {
+    opacity: 1;
+    color: var(--accent);
+  }
+
+  .sidebar-item.active::before {
+    content: '';
+    position: absolute;
+    left: -1px; top: 25%; height: 50%;
+    width: 3px;
+    background: linear-gradient(180deg, var(--accent) 0%, var(--accent-hover) 100%);
+    border-radius: 0 3px 3px 0;
+    box-shadow: 0 0 10px rgba(217, 119, 6, 0.5);
+  }
+
+  .sidebar-footer {
+    padding: 14px 18px;
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
+    background: rgba(0, 0, 0, 0.2);
+  }
+
+  /* ==========================================================================
+     2. APP HEADER
+     ========================================================================== */
+  .app-header {
+    height: 72px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 32px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background-color: rgba(12, 12, 12, 0.6);
+    backdrop-filter: blur(12px);
+  }
+
+  .pill-nav {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    padding: 4px 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .sys-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: 'JetBrains Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    font-size: 10px;
+  }
+  
+  .sys-status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: var(--accent);
+    animation: pulse 2s infinite;
+  }
+  
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(204, 255, 0, 0.7); }
+    70% { box-shadow: 0 0 0 10px rgba(204, 255, 0, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(204, 255, 0, 0); }
+  }
+
+  .dark .app-header {
+    background-color: rgba(12, 12, 12, 0.6);
+  }
+
+  .header-breadcrumb {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    margin: 0;
+  }
+
+  .header-action-btn {
+    width: 36px; height: 36px;
+    border-radius: 9px;
+    border: 1px solid var(--border-strong);
+    background-color: var(--bg-card);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-secondary);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+  }
+
+  .header-action-btn:hover {
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+    border-color: var(--accent);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(217, 119, 6, 0.1);
+  }
+
+  .header-action-btn:active {
+    transform: scale(0.94) translateY(0);
+  }
+
+  /* ==========================================================================
+     3. CARDS & STAT CARDS
+     ========================================================================== */
+  .card {
+    background-color: var(--bg-card);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-card);
+    border: 1px solid var(--border);
+    padding: 28px;
+    position: relative;
+    overflow: hidden;
+    transition: box-shadow 0.25s ease, border-color 0.25s ease;
+  }
+
+  .card:hover {
+    box-shadow: var(--shadow-raised);
+  }
+
+  .stat-card {
+    background-color: var(--bg-card);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-card);
+    border: 1px solid var(--border);
+    padding: 24px 26px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    position: relative;
+    overflow: hidden;
+    transition: box-shadow 0.25s cubic-bezier(0.4,0,0.2,1),
+                border-color 0.25s cubic-bezier(0.4,0,0.2,1),
+                transform 0.2s cubic-bezier(0.34,1.56,0.64,1);
+  }
+
+  .stat-card:hover {
+    box-shadow: var(--shadow-raised);
+    border-color: rgba(217, 119, 6, 0.15);
+    transform: translateY(-3px);
+  }
+
+  .stat-card-label {
+    font-family: 'Outfit', sans-serif;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin: 0;
+  }
+
+  .stat-card-value {
+    font-family: 'Geist Mono', monospace;
+    font-size: 32px;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1;
+    letter-spacing: -0.04em;
+    margin: 0;
+  }
+
+  .stat-card-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .stat-card:hover .stat-card-icon {
+    transform: scale(1.1) rotate(5deg);
+  }
+
+  .page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  /* ==========================================================================
+     4. BUTTONS
+     ========================================================================== */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 13.5px;
+    font-weight: 600;
+    padding: 9px 18px;
+    border-radius: 9px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    white-space: nowrap;
+    letter-spacing: -0.01em;
+    text-decoration: none;
+    transition: background 0.18s ease, box-shadow 0.18s ease,
+                border-color 0.18s ease, transform 0.1s ease,
+                filter 0.15s ease;
+  }
+
+  .btn:active {
+    transform: scale(0.97) translateY(1px);
+  }
+
+  .btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
+    color: #ffffff;
+    border: 1px solid rgba(217, 119, 6, 0.08);
+    box-shadow: 0 3px 12px rgba(217, 119, 6, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  }
+
+  .btn-primary:hover {
+    box-shadow: 0 5px 20px rgba(217, 119, 6, 0.32),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    filter: brightness(1.06);
+    transform: translateY(-1px);
+  }
+
+  .btn-secondary {
+    background-color: var(--bg-card);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-strong);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  }
+
+  .btn-secondary:hover {
+    color: var(--text-primary);
+    background-color: var(--bg-base);
+    border-color: var(--accent);
+    box-shadow: 0 2px 8px rgba(217, 119, 6, 0.06);
+  }
+
+  .btn-ghost {
+    background-color: transparent;
+    color: var(--text-secondary);
+    border: 1px solid transparent;
+  }
+
+  .btn-ghost:hover {
+    background-color: rgba(15, 23, 42, 0.05);
+    color: var(--text-primary);
+    border-color: var(--border-strong);
+  }
+
+  .dark .btn-ghost:hover {
+    background-color: rgba(255, 255, 255, 0.04);
+  }
+
+  .btn-danger {
+    background: linear-gradient(135deg, #be123c 0%, #9f1239 100%);
+    color: #ffffff;
+    border: 1px solid rgba(190, 18, 60, 0.1);
+    box-shadow: 0 3px 12px rgba(190, 18, 60, 0.18);
+  }
+
+  .btn-danger:hover {
+    box-shadow: 0 5px 18px rgba(190, 18, 60, 0.28);
+    filter: brightness(1.06);
+    transform: translateY(-1px);
+  }
+
+  /* Small variant used inside table action cells */
+  .btn[style*="padding: '5px 10px'"],
+  .btn[style*='padding: "5px 10px"'] {
+    padding: 5px 11px !important;
+    font-size: 12px !important;
+    border-radius: 7px !important;
+    gap: 5px !important;
+  }
+
+  /* ==========================================================================
+     5. INPUTS & LABELS
+     ========================================================================== */
+  .input {
+    width: 100%;
+    padding: 10px 14px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 13.5px;
+    font-weight: 500;
+    border: 1px solid var(--border-strong);
+    border-radius: 9px;
+    background-color: var(--bg-card);
+    color: var(--text-primary);
+    outline: none;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.015);
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  }
+
+  .input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.1),
+                inset 0 1px 2px rgba(0, 0, 0, 0.015);
+  }
+
+  .input::placeholder {
+    color: var(--text-muted);
+    font-weight: 400;
+  }
+
+  .input-label {
+    display: block;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+    letter-spacing: -0.005em;
+  }
+
+  select.input {
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
+  }
+
+  /* ==========================================================================
+     6. DATA TABLES
+     ========================================================================== */
+  .table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    background-color: var(--bg-card);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-card);
+    border: 1px solid var(--border);
+  }
+
+  .table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .table-header {
+    padding: 13px 20px;
+    text-align: left;
+    font-family: 'Outfit', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    background-color: rgba(15, 23, 42, 0.015);
+    border-bottom: 1px solid var(--border-strong);
+    white-space: nowrap;
+  }
+
+  .dark .table-header {
+    background-color: rgba(255, 255, 255, 0.01);
+  }
+
+  .table-row {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.12s ease;
+  }
+
+  .table-row:last-child {
+    border-bottom: none;
+  }
+
+  .table-row:hover {
+    background-color: rgba(217, 119, 6, 0.013);
+  }
+
+  .dark .table-row:hover {
+    background-color: rgba(245, 158, 11, 0.01);
+  }
+
+  .table-cell {
+    padding: 14px 20px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--text-primary);
+    vertical-align: middle;
+  }
+
+  .table-cell-mono {
+    font-family: 'Geist Mono', monospace;
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    letter-spacing: -0.02em;
+  }
+
+  /* ==========================================================================
+     7. BADGES
+     ========================================================================== */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 9px;
+    border-radius: 7px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    border: 1px solid transparent;
+  }
+
+  .badge-green {
+    background-color: rgba(13, 148, 136, 0.08);
+    color: var(--success);
+    border-color: rgba(13, 148, 136, 0.15);
+  }
+
+  .badge-yellow {
+    background-color: rgba(217, 119, 6, 0.08);
+    color: var(--accent);
+    border-color: rgba(217, 119, 6, 0.15);
+  }
+
+  .badge-red {
+    background-color: rgba(190, 18, 60, 0.07);
+    color: var(--error);
+    border-color: rgba(190, 18, 60, 0.12);
+  }
+
+  .badge-gray {
+    background-color: rgba(100, 116, 139, 0.06);
+    color: var(--text-secondary);
+    border-color: var(--border-strong);
+  }
+
+  /* ==========================================================================
+     8. ALERTS
+     ========================================================================== */
+  .alert-error {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 16px;
+    background-color: rgba(190, 18, 60, 0.05);
+    border: 1px solid rgba(190, 18, 60, 0.15);
+    border-radius: 10px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--error);
+  }
+
+  /* ==========================================================================
+     9. EMPTY STATE
+     ========================================================================== */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 72px 24px;
+    text-align: center;
+  }
+
+  .empty-state-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+  }
+
+  .empty-state-body {
+    font-size: 13px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    color: var(--text-secondary);
+    max-width: 280px;
+    line-height: 1.6;
+  }
+
+  /* ==========================================================================
+     10. AVATARS
+     ========================================================================== */
+  .avatar {
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    color: #ffffff;
+    flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(217, 119, 6, 0.2);
+  }
+
+  /* ==========================================================================
+     11. DIVIDERS
+     ========================================================================== */
+  .divider {
+    height: 1px;
+    background-color: var(--border);
+    margin: 22px 0;
+  }
+
+  /* ==========================================================================
+     12. MODALS
+     ========================================================================== */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(8, 12, 20, 0.5);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    padding: 20px;
+    animation: fade-in 0.15s ease both;
+  }
+
+  .modal-box {
+    background-color: var(--bg-card);
+    border-radius: var(--radius-xl);
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.18), 0 0 0 1px var(--border-strong);
+    border: 1px solid var(--border-strong);
+    width: 100%;
+    max-width: 520px;
+    padding: 32px;
+    animation: scale-in 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Subtle gradient bleed inside modal */
+  .modal-box::before {
+    content: '';
+    position: absolute;
+    top: 0; right: 0;
+    width: 200px; height: 100px;
+    background: radial-gradient(ellipse, rgba(217, 119, 6, 0.04) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .modal-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+    margin-bottom: 5px;
+  }
+
+  .modal-subtitle {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 24px;
+    line-height: 1.6;
+  }
+
+  /* ==========================================================================
+     13. SKELETON LOADERS
+     ========================================================================== */
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      rgba(15, 23, 42, 0.04) 25%,
+      rgba(15, 23, 42, 0.09) 50%,
+      rgba(15, 23, 42, 0.04) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+    border-radius: 6px;
+  }
+
+  .dark .skeleton {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.03) 25%,
+      rgba(255, 255, 255, 0.07) 50%,
+      rgba(255, 255, 255, 0.03) 75%
+    );
+    background-size: 200% 100%;
+  }
+
+  /* ==========================================================================
+     14. PREMIUM BACKGROUND MESH
+     ========================================================================== */
+  /* Subtle radial mesh behind the main content area for atmosphere */
+  main.page-enter {
+    position: relative;
+  }
+
+  main.page-enter::before {
+    content: '';
+    position: fixed;
+    top: 0; right: 0;
+    width: 600px; height: 600px;
+    background: radial-gradient(
+      ellipse at top right,
+      rgba(217, 119, 6, 0.03) 0%,
+      transparent 60%
+    );
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  main.page-enter::after {
+    content: '';
+    position: fixed;
+    bottom: 0; left: 250px;
+    width: 500px; height: 500px;
+    background: radial-gradient(
+      ellipse at bottom left,
+      rgba(99, 102, 241, 0.025) 0%,
+      transparent 65%
+    );
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  main.page-enter > * {
+    position: relative;
+    z-index: 1;
+  }
+}

@@ -1,0 +1,92 @@
+:root {
+  /* Premium Base Backgrounds - Light Mode */
+  --bg-base: #f8fafc;
+  --bg-card: #ffffff;
+  
+  /* Sidebar uses a deep luxurious academic navy */
+  --bg-sidebar: #0a0f1d;
+  --bg-sidebar-hover: #131b31;
+  --bg-sidebar-active: #17223c;
+
+  /* Typography Colors */
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --text-sidebar: #94a3b8;
+  --text-sidebar-active: #ffffff;
+  --text-on-yellow: #ffffff; /* High contrast text on buttons */
+
+  /* Vibrant Institutional Accents */
+  --accent: #d97706;        /* Warm amber-gold */
+  --accent-hover: #b45309;  /* Deep amber */
+  --accent-subtle: #fef3c7; /* Soft gold background */
+
+  /* Refined, thin, high-contrast borders */
+  --border: rgba(15, 23, 42, 0.05);
+  --border-strong: rgba(15, 23, 42, 0.1);
+
+  /* Status Colors */
+  --success: #0d9488;       /* Vibrant teal-green */
+  --success-bg: #f0fdfa;
+  --error: #be123c;         /* Soft burgundy/crimson */
+  --error-bg: #fff1f2;
+  --warning: #d97706;
+  --warning-bg: #fffbeb;
+
+  /* Layout and border radius */
+  --sidebar-width: 250px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+
+  /* Multi-layered soft organic shadows */
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.02), 0 4px 12px rgba(0,0,0,0.03), 0 0 0 1px rgba(15,23,42,0.04);
+  --shadow-raised: 0 4px 6px -1px rgba(0,0,0,0.01), 0 16px 40px -4px rgba(0,0,0,0.04), 0 0 0 1px rgba(15,23,42,0.04);
+  --shadow-dropdown: 0 10px 40px -10px rgba(0,0,0,0.12), 0 0 0 1px rgba(15,23,42,0.06);
+
+  --noise-opacity: 0.015;
+}
+
+.dark {
+  /* Premium Dark Base Backgrounds */
+  --bg-base: #080c14;
+  --bg-card: #0f1626;
+  --bg-sidebar: #05080e;
+  --bg-sidebar-hover: #121927;
+  --bg-sidebar-active: #172033;
+
+  /* Typography Colors */
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-sidebar: #64748b;
+  --text-sidebar-active: #f8fafc;
+  --text-on-yellow: #080c14;
+
+  /* Vibrant Accents - glowier for dark mode */
+  --accent: #f59e0b;
+  --accent-hover: #d97706;
+  --accent-subtle: rgba(245, 158, 11, 0.1);
+
+  /* High contrast dark borders */
+  --border: rgba(255, 255, 255, 0.04);
+  --border-strong: rgba(255, 255, 255, 0.08);
+
+  /* Status Colors */
+  --success: #14b8a6;
+  --success-bg: rgba(20, 184, 166, 0.1);
+  --error: #f43f5e;
+  --error-bg: rgba(244, 63, 94, 0.1);
+  --warning: #f59e0b;
+  --warning-bg: rgba(245, 158, 11, 0.1);
+
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2), 0 0 0 1px rgba(255,255,255,0.03);
+  --shadow-raised: 0 4px 6px -1px rgba(0,0,0,0.2), 0 20px 48px -4px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04);
+  
+  --noise-opacity: 0.025;
+}
+
+.dark {
+  /* Same as above because this is dark-mode-first */
+}
