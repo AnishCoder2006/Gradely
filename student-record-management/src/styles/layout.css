@@ -1,3 +1,4 @@
+/* Layout Utilities */
 .flex-between {
   display: flex;
   align-items: center;
@@ -16,11 +17,13 @@
   justify-content: flex-start;
 }
 
+/* Spacing gaps */
 .gap-section  { gap: 36px; }
 .gap-card     { gap: 24px; }
 .gap-element  { gap: 14px; }
 .gap-tight    { gap: 8px; }
 
+/* Bento Grids */
 .bento-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -53,12 +56,31 @@
   }
 }
 
+/* Page Section Container */
 .page-section {
   display: flex;
   flex-direction: column;
   gap: 32px;
 }
 
+/* Card & Bento Container Surface Styling */
+.card,
+.bento-card,
+.panel-container {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 14px);
+  box-shadow: var(--shadow-card);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.card:hover,
+.bento-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-raised);
+}
+
+/* Dividers & Scrolling */
 .divider-v {
   width: 1px;
   align-self: stretch;

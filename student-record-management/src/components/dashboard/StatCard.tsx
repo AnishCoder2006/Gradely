@@ -1,18 +1,22 @@
+import { ReactNode } from 'react';
 import { LucideIcon } from 'lucide-react';
 
-interface StatCardProps {
+export interface StatCardProps {
   title: string;
   value: number | string;
-  icon: LucideIcon;
+  icon: LucideIcon | ReactNode;
   trend?: { value: number; label: string };
-  color?: 'yellow' | 'blue' | 'green' | 'purple';
+  valueColor?: string;
+  color?: 'yellow' | 'blue' | 'green' | 'purple' | 'red' | 'slate';
 }
 
-const colorTokens = {
-  yellow: { bg: 'rgba(217,119,6,0.08)',   icon: '#d97706' },
-  blue:   { bg: 'rgba(99,102,241,0.08)',  icon: '#6366f1' },
-  green:  { bg: 'rgba(13,148,136,0.08)',  icon: '#0d9488' },
-  purple: { bg: 'rgba(139,92,246,0.08)',  icon: '#8b5cf6' },
+const COLOR_TOKENS = {
+  yellow: { bg: 'var(--accent-subtle)', icon: 'var(--accent-primary)' },
+  blue: { bg: 'var(--accent-subtle)', icon: 'var(--accent-primary)' },
+  green: { bg: 'var(--accent-subtle)', icon: 'var(--accent-primary)' },
+  purple: { bg: 'var(--accent-subtle)', icon: 'var(--accent-primary)' },
+  red: { bg: 'var(--accent-subtle)', icon: 'var(--accent-primary)' },
+  slate: { bg: 'var(--accent-subtle)', icon: 'var(--accent-primary)' },
 };
 
 export const StatCard = ({
@@ -20,15 +24,30 @@ export const StatCard = ({
   value,
   icon: Icon,
   trend,
+  valueColor,
   color = 'yellow',
 }: StatCardProps) => {
-  const token = colorTokens[color];
+  const token = COLOR_TOKENS[color] || COLOR_TOKENS.yellow;
   const isPositive = (trend?.value ?? 0) >= 0;
+
+  const renderIcon = () => {
+    if (!Icon) return null;
+    // Check if Icon is a LucideIcon component (function/object) or direct ReactNode element
+    if (typeof Icon === 'function' || (typeof Icon === 'object' && 'render' in Icon)) {
+      const LucideComp = Icon as LucideIcon;
+      return <LucideComp size={15} style={{ color: token.icon, flexShrink: 0 }} />;
+    }
+    return Icon;
+  };
 
   return (
     <div
       className="stat-card"
-      style={{ position: 'relative', overflow: 'hidden' }}
+      style={{
+        position: 'relative',
+        overflow: 'hidden',
+        transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+      }}
     >
       {/* Subtle top-edge accent gradient line */}
       <div style={{
@@ -39,23 +58,28 @@ export const StatCard = ({
         borderRadius: '24px 24px 0 0',
       }} />
 
-      {/* Icon + title row */}
+      {/* Icon + Title Header Row */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <p className="stat-card-label">{title}</p>
+        <p className="stat-card-label" style={{ margin: 0 }}>{title}</p>
         <div
           className="stat-card-icon"
-          style={{ backgroundColor: token.bg }}
+          style={{
+            backgroundColor: token.bg,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
         >
-          <Icon size={15} style={{ color: token.icon, flexShrink: 0 }} />
+          {renderIcon()}
         </div>
       </div>
 
-      {/* Value */}
-      <p className="stat-card-value">
+      {/* Metric Value */}
+      <p className="stat-card-value" style={valueColor ? { color: valueColor } : undefined}>
         {typeof value === 'number' ? value.toLocaleString() : value}
       </p>
 
-      {/* Trend — optional */}
+      {/* Trend Indicator */}
       {trend && (
         <div style={{
           display: 'flex',
@@ -69,7 +93,7 @@ export const StatCard = ({
             gap: 2,
             fontSize: 11,
             fontWeight: 500,
-            fontFamily: 'Geist Mono, monospace',
+            fontFamily: 'IBM Plex Mono, monospace',
             color: isPositive ? 'var(--success)' : 'var(--error)',
             backgroundColor: isPositive ? 'var(--success-bg)' : 'var(--error-bg)',
             padding: '2px 6px',

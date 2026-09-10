@@ -1,9 +1,16 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import {
   Plus, Trash2, Edit3, IndianRupee,
   AlertTriangle, Loader2, X, CreditCard,
 } from 'lucide-react';
-import { feeService, paymentService, Fee, Payment, FeeType } from '../../services/paymentService';
+import { Fee, FeeType } from '../../services/paymentService';
+import {
+  useCreateFeeMutation,
+  useDeleteFeeMutation,
+  useGetAllPaymentsQuery,
+  useGetFeesQuery,
+  useUpdateFeeMutation,
+} from '../../store';
 
 const FEE_TYPE_LABELS: Record<FeeType, string> = {
   tuition: 'Tuition', exam: 'Exam', library: 'Library',
@@ -11,45 +18,35 @@ const FEE_TYPE_LABELS: Record<FeeType, string> = {
 };
 
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
-  paid:    { label: 'Paid',    cls: 'badge-green' },
+  paid: { label: 'Paid', cls: 'badge-green' },
   created: { label: 'Pending', cls: 'badge-yellow' },
-  failed:  { label: 'Failed',  cls: 'badge-red' },
+  failed: { label: 'Failed', cls: 'badge-red' },
 };
 
-const fmtINR  = (n: number) => `₹${n.toLocaleString('en-IN')}`;
+const fmtINR = (n: number) => `₹${n.toLocaleString('en-IN')}`;
 const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 
 const EMPTY_FORM = { title: '', feeType: 'tuition' as FeeType, amount: '', dueDate: '', description: '', isActive: true };
 
 export default function AdminFeesPage() {
-  const [fees, setFees]         = useState<Fee[]>([]);
-  const [payments, setPayments] = useState<Payment[]>([]);
-  const [loading, setLoading]   = useState(true);
-  const [saving, setSaving]     = useState(false);
-  const [error, setError]       = useState('');
-  const [tab, setTab]           = useState<'fees' | 'payments'>('fees');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [tab, setTab] = useState<'fees' | 'payments'>('fees');
 
   const [showForm, setShowForm] = useState(false);
-  const [editing, setEditing]   = useState<Fee | null>(null);
-  const [form, setForm]         = useState(EMPTY_FORM);
+  const [editing, setEditing] = useState<Fee | null>(null);
+  const [form, setForm] = useState(EMPTY_FORM);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [f, p] = await Promise.all([
-        feeService.getAll(),
-        paymentService.getAllPayments({ limit: 50 }).then(r => r.data),
-      ]);
-      setFees(f);
-      setPayments(p);
-    } catch { /* silent */ }
-    finally { setLoading(false); }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
+  const { data: fees = [], isLoading: feesLoading, isFetching: feesFetching } = useGetFeesQuery();
+  const { data: paymentResponse, isLoading: paymentsLoading, isFetching: paymentsFetching } = useGetAllPaymentsQuery({ limit: 50 });
+  const payments = paymentResponse?.data ?? [];
+  const [createFee] = useCreateFeeMutation();
+  const [updateFee] = useUpdateFeeMutation();
+  const [deleteFee] = useDeleteFeeMutation();
+  const loading = feesLoading || paymentsLoading || feesFetching || paymentsFetching;
 
   const openCreate = () => { setEditing(null); setForm(EMPTY_FORM); setError(''); setShowForm(true); };
-  const openEdit   = (fee: Fee) => {
+  const openEdit = (fee: Fee) => {
     setEditing(fee);
     setForm({
       title: fee.title, feeType: fee.feeType,
@@ -69,17 +66,16 @@ export default function AdminFeesPage() {
     setSaving(true); setError('');
     try {
       const payload = { ...form, amount: Number(form.amount) };
-      if (editing) await feeService.update(editing._id, payload);
-      else         await feeService.create(payload);
+      if (editing) await updateFee({ id: editing._id, data: payload }).unwrap();
+      else await createFee(payload).unwrap();
       setShowForm(false);
-      load();
     } catch (e: any) { setError(e.message); }
     finally { setSaving(false); }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this fee notice?')) return;
-    try { await feeService.delete(id); load(); }
+    try { await deleteFee(id).unwrap(); }
     catch (e: any) { alert(e.message); }
   };
 
@@ -105,7 +101,7 @@ export default function AdminFeesPage() {
             onClick={() => setTab(t)}
             style={{
               padding: '6px 18px', borderRadius: 7, border: 'none', cursor: 'pointer',
-              fontFamily: 'Plus Jakarta Sans, sans-serif', fontSize: 13, fontWeight: 600,
+              fontFamily: 'Instrument Sans, sans-serif', fontSize: 13, fontWeight: 600,
               background: tab === t ? 'var(--bg-card)' : 'transparent',
               color: tab === t ? 'var(--text-primary)' : 'var(--text-muted)',
               boxShadow: tab === t ? 'var(--shadow-card)' : 'none',
@@ -149,7 +145,7 @@ export default function AdminFeesPage() {
                     <td className="table-cell">
                       <span className="badge badge-gray">{FEE_TYPE_LABELS[fee.feeType]}</span>
                     </td>
-                    <td className="table-cell" style={{ fontFamily: 'Geist Mono, monospace', fontWeight: 700 }}>
+                    <td className="table-cell" style={{ fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700 }}>
                       {fmtINR(fee.amount)}
                     </td>
                     <td className="table-cell" style={{ color: 'var(--text-secondary)' }}>
@@ -198,7 +194,7 @@ export default function AdminFeesPage() {
                 {payments.map(p => {
                   const cfg = STATUS_BADGE[p.status] ?? STATUS_BADGE.created;
                   const student = typeof p.studentId === 'object' ? p.studentId : null;
-                  const fee     = typeof p.feeId     === 'object' ? p.feeId     : null;
+                  const fee = typeof p.feeId === 'object' ? p.feeId : null;
                   return (
                     <tr key={p._id} className="table-row">
                       <td className="table-cell">
@@ -206,7 +202,7 @@ export default function AdminFeesPage() {
                         <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)' }}>{student?.email ?? '—'}</p>
                       </td>
                       <td className="table-cell">{fee?.title ?? '—'}</td>
-                      <td className="table-cell" style={{ fontFamily: 'Geist Mono, monospace', fontWeight: 700 }}>
+                      <td className="table-cell" style={{ fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700 }}>
                         {fmtINR(p.amount / 100)}
                       </td>
                       <td className="table-cell"><span className={`badge ${cfg.cls}`}>{cfg.label}</span></td>

@@ -1,20 +1,25 @@
-import { useEffect, useState } from 'react';
-import { apiClient } from '../../services/api';
+import { useState } from 'react';
 import { useToastContext } from '../../context/ToastContext';
+import { useUpdateUserStatusMutation, baseApi, useAppDispatch } from '../../store';
 import { CheckCircle, XCircle, Clock, Users, UserCheck, UserX } from 'lucide-react';
+import { useEffect } from 'react';
 
 const AdminStudentApprovePage = () => {
   const { success, error: toastError } = useToastContext();
+  const dispatch = useAppDispatch();
   const [students, setStudents] = useState<any[]>([]);
-  const [loading, setLoading]   = useState(true);
-  const [filter, setFilter]     = useState<'all' | 'pending' | 'active' | 'inactive'>('all');
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<'all' | 'pending' | 'active' | 'inactive'>('all');
   const [processing, setProcessing] = useState<string | null>(null);
+
+  const [updateUserStatus] = useUpdateUserStatusMutation();
 
   const fetchStudents = async () => {
     try {
-      setLoading(true);
-      const data = await apiClient.get<any[]>('/users?role=student');
-      setStudents(data);
+      await dispatch(baseApi.endpoints.getTeachers.initiate()).unwrap();
+      // fetch users endpoint directly via store query
+      const response = await dispatch(baseApi.endpoints.getStudents.initiate({})).unwrap();
+      setStudents(response.data || []);
     } catch {
       toastError('Failed to load students.');
     } finally {
@@ -27,7 +32,7 @@ const AdminStudentApprovePage = () => {
   const handleApprove = async (userId: string, name: string) => {
     setProcessing(userId);
     try {
-      await apiClient.patch(`/users/${userId}/status`, { isActive: true });
+      await updateUserStatus({ id: userId, status: 'active' }).unwrap();
       success(`${name} approved successfully`);
       fetchStudents();
     } catch {
@@ -41,7 +46,7 @@ const AdminStudentApprovePage = () => {
     if (!window.confirm(`Reject ${name}'s access?`)) return;
     setProcessing(userId);
     try {
-      await apiClient.patch(`/users/${userId}/status`, { isActive: false });
+      await updateUserStatus({ id: userId, status: 'inactive' }).unwrap();
       success(`${name} rejected`);
       fetchStudents();
     } catch {
@@ -52,25 +57,25 @@ const AdminStudentApprovePage = () => {
   };
 
   const filtered = students.filter(s => {
-    if (filter === 'all')      return true;
-    if (filter === 'pending')  return !s.studentRecord && s.isActive;
-    if (filter === 'active')   return s.studentRecord?.status === 'active';
+    if (filter === 'all') return true;
+    if (filter === 'pending') return !s.studentRecord && s.isActive;
+    if (filter === 'active') return s.studentRecord?.status === 'active';
     if (filter === 'inactive') return !s.isActive || s.studentRecord?.status === 'inactive';
     return true;
   });
 
   const counts = {
-    all:      students.length,
-    pending:  students.filter(s => !s.studentRecord && s.isActive).length,
-    active:   students.filter(s => s.studentRecord?.status === 'active').length,
+    all: students.length,
+    pending: students.filter(s => !s.studentRecord && s.isActive).length,
+    active: students.filter(s => s.studentRecord?.status === 'active').length,
     inactive: students.filter(s => !s.isActive || s.studentRecord?.status === 'inactive').length,
   };
 
   const getStatusInfo = (s: any) => {
-    if (!s.isActive)           return { label: 'Rejected',          badge: 'badge-red',    icon: UserX };
-    if (!s.studentRecord)      return { label: 'Pending Profile',   badge: 'badge-yellow', icon: Clock };
-    if (s.studentRecord?.status === 'active')   return { label: 'Approved', badge: 'badge-green',  icon: UserCheck };
-    if (s.studentRecord?.status === 'inactive') return { label: 'Inactive', badge: 'badge-red',    icon: UserX };
+    if (!s.isActive) return { label: 'Rejected', badge: 'badge-red', icon: UserX };
+    if (!s.studentRecord) return { label: 'Pending Profile', badge: 'badge-yellow', icon: Clock };
+    if (s.studentRecord?.status === 'active') return { label: 'Approved', badge: 'badge-green', icon: UserCheck };
+    if (s.studentRecord?.status === 'inactive') return { label: 'Inactive', badge: 'badge-red', icon: UserX };
     return { label: 'Pending', badge: 'badge-yellow', icon: Clock };
   };
 
@@ -86,9 +91,9 @@ const AdminStudentApprovePage = () => {
 
       <div className="bento-4 stagger animate-fade-up">
         {[
-          { label: 'Total',    value: counts.all,      color: '#3b82f6', icon: Users },
-          { label: 'Pending',  value: counts.pending,  color: '#eab308', icon: Clock },
-          { label: 'Approved', value: counts.active,   color: '#22c55e', icon: UserCheck },
+          { label: 'Total', value: counts.all, color: '#3b82f6', icon: Users },
+          { label: 'Pending', value: counts.pending, color: '#eab308', icon: Clock },
+          { label: 'Approved', value: counts.active, color: '#22c55e', icon: UserCheck },
           { label: 'Rejected', value: counts.inactive, color: '#dc2626', icon: UserX },
         ].map((s, i) => (
           <div key={i} className="card" style={{ padding: '18px 20px', position: 'relative', overflow: 'hidden', cursor: 'pointer' }}
@@ -108,9 +113,9 @@ const AdminStudentApprovePage = () => {
       <div style={{ display: 'flex', gap: 8 }} className="animate-fade-up">
         {(['all', 'pending', 'active', 'inactive'] as const).map(f => (
           <button key={f} onClick={() => setFilter(f)} style={{
-            padding: '6px 14px', borderRadius: 8, border: 'none',
+            padding: '6px 14px', borderRadius: 8,
             cursor: 'pointer', fontSize: 12, fontWeight: 500,
-            fontFamily: 'Geist, sans-serif',
+            fontFamily: 'Instrument Sans, sans-serif',
             backgroundColor: filter === f ? 'var(--accent)' : 'var(--bg-card)',
             color: filter === f ? 'var(--text-on-yellow)' : 'var(--text-secondary)',
             border: filter === f ? 'none' : '1px solid var(--border-strong)',
@@ -129,7 +134,7 @@ const AdminStudentApprovePage = () => {
 
         {loading ? (
           <div style={{ padding: 24 }}>
-            {[1,2,3,4].map(i => <div key={i} className="skeleton" style={{ height: 60, borderRadius: 8, marginBottom: 10 }} />)}
+            {[1, 2, 3, 4].map(i => <div key={i} className="skeleton" style={{ height: 60, borderRadius: 8, marginBottom: 10 }} />)}
           </div>
         ) : filtered.length === 0 ? (
           <div className="empty-state"><p className="empty-state-title">No students in this category</p></div>
@@ -137,7 +142,6 @@ const AdminStudentApprovePage = () => {
           <div>
             {filtered.map((s, i) => {
               const status = getStatusInfo(s);
-              const StatusIcon = status.icon;
               const isProcessing = processing === s._id;
               return (
                 <div key={s._id} className="flex-between" style={{

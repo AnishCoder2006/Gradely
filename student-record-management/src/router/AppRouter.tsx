@@ -5,34 +5,35 @@ import { AppLayout } from '../components/layout/AppLayout';
 import AuthPage from '../pages/AuthPage';
 import RoleRouter from './RoleRouter';
 
-import StudentsPage             from '../pages/StudentsPage';
-import CoursesPage               from '../pages/CoursesPage';
-import GradesPage                from '../pages/GradesPage';
-import StudentProfilePage        from '../pages/StudentProfilePage';
-import AdminTeacherAssignPage    from '../pages/admin/AdminTeacherAssignPage';
-import AdminStudentApprovePage   from '../pages/admin/AdminStudentApprovePage';
+import StudentsPage from '../pages/StudentsPage';
+import CoursesPage from '../pages/CoursesPage';
+import GradesPage from '../pages/GradesPage';
+import StudentProfilePage from '../pages/StudentProfilePage';
+import AdminTeacherAssignPage from '../pages/admin/AdminTeacherAssignPage';
+import AdminStudentApprovePage from '../pages/admin/AdminStudentApprovePage';
 
-import TeacherAttendancePage    from '../pages/teacher/TeacherAttendancePage';
-import MyCoursesPage            from '../pages/teacher/MyCoursesPage';
+import TeacherAttendancePage from '../pages/teacher/TeacherAttendancePage';
+import MyCoursesPage from '../pages/teacher/MyCoursesPage';
 import TeacherRequestCoursePage from '../pages/teacher/TeacherRequestCoursePage';
 
-import MyProfilePage       from '../pages/student/MyProfilePage';
-import MyGradesPage        from '../pages/student/MyGradesPage';
-import MyAttendancePage    from '../pages/student/MyAttendancePage';
-import MyProgressPage      from '../pages/student/MyProgressPage';
+import MyProfilePage from '../pages/student/MyProfilePage';
+import MyGradesPage from '../pages/student/MyGradesPage';
+import MyAttendancePage from '../pages/student/MyAttendancePage';
+import MyProgressPage from '../pages/student/MyProgressPage';
 import PendingApprovalPage from '../pages/student/PendingApprovalPage';
 
 import AnnouncementsPage from '../pages/AnnouncementsPage';
-import DoubtsPage         from '../pages/DoubtsPage';
-import SettingsPage       from '../pages/SettingsPage';
-import PaymentPage        from '../pages/student/PaymentPage';
-import AdminPaymentsPage  from '../pages/admin/AdminPaymentsPage';
+import DoubtsPage from '../pages/DoubtsPage';
+import SettingsPage from '../pages/SettingsPage';
+import PaymentPage from '../pages/student/PaymentPage';
+import AdminPaymentsPage from '../pages/admin/AdminPaymentsPage';
+import AdminAuditLogsPage from '../pages/admin/AdminAuditLogsPage';
 
 const AuthSkeleton = () => (
   <div style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-base)' }}>
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
       <div style={{ width: 48, height: 48, borderRadius: 12, background: 'linear-gradient(135deg, #eab308, #ca8a04)', animation: 'pulse-dot 1.4s ease-in-out infinite' }} />
-      <p style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'Geist Mono, monospace' }}>Loading...</p>
+      <p style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'IBM Plex Mono, monospace' }}>Loading...</p>
     </div>
   </div>
 );
@@ -95,13 +96,14 @@ const AppRouter = () => {
       {/* Student only */}
       <Route path="/my-profile" element={<StudentGuard><MyProfilePage /></StudentGuard>} />
       <Route path="/my-profile/setup" element={<StudentGuard><MyProfilePage setup /></StudentGuard>} />
-      <Route path="/my-grades"      element={<StudentGuard><MyGradesPage /></StudentGuard>} />
-      <Route path="/my-progress"    element={<StudentGuard><MyProgressPage /></StudentGuard>} />
-      <Route path="/my-attendance"  element={<StudentGuard><MyAttendancePage /></StudentGuard>} />
-      <Route path="/my-payments"    element={<StudentGuard><PaymentPage /></StudentGuard>} />
+      <Route path="/my-grades" element={<StudentGuard><MyGradesPage /></StudentGuard>} />
+      <Route path="/my-progress" element={<StudentGuard><MyProgressPage /></StudentGuard>} />
+      <Route path="/my-attendance" element={<StudentGuard><MyAttendancePage /></StudentGuard>} />
+      <Route path="/my-payments" element={<StudentGuard><PaymentPage /></StudentGuard>} />
 
       {/* Admin payments */}
       <Route path="/admin/payments" element={<ProtectedLayout roles={['admin']}><AdminPaymentsPage /></ProtectedLayout>} />
+      <Route path="/admin/audit-logs" element={<ProtectedLayout roles={['admin']}><AdminAuditLogsPage /></ProtectedLayout>} />
 
       <Route path="*" element={<ProtectedLayout><NotFound /></ProtectedLayout>} />
     </Routes>

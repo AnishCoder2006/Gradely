@@ -1,44 +1,79 @@
 :root {
-  /* Premium Base Backgrounds - Light Mode */
-  --bg-base: #f8fafc;
+  /* Academic paper and ink surfaces. */
+  --bg-base: #eef3f8;
+  --bg-base-end: #e4ebf4;
+  --bg-recessed: #e8eef6;
   --bg-card: #ffffff;
+  --bg-elevated: #ffffff;
   
-  /* Sidebar uses a deep luxurious academic navy */
-  --bg-sidebar: #0a0f1d;
-  --bg-sidebar-hover: #131b31;
-  --bg-sidebar-active: #17223c;
+  /* Light sidebar surfaces */
+  --bg-sidebar: #ffffff;
+  --bg-sidebar-hover: #F5F6FA;
+  --bg-sidebar-active: #EEF0FF;
 
   /* Typography Colors */
   --text-primary: #0f172a;
   --text-secondary: #475569;
   --text-muted: #64748b;
-  --text-sidebar: #94a3b8;
-  --text-sidebar-active: #ffffff;
-  --text-on-yellow: #ffffff; /* High contrast text on buttons */
+  --text-sidebar: #64748b;
+  --text-sidebar-active: #0f172a;
+  --text-on-yellow: #ffffff;
 
   /* Vibrant Institutional Accents */
-  --accent: #d97706;        /* Warm amber-gold */
-  --accent-hover: #b45309;  /* Deep amber */
-  --accent-subtle: #fef3c7; /* Soft gold background */
+  --accent: #4f46e5;
+  --accent-hover: #3730a3;
+  --accent-subtle: #eef2ff;
+  --data-accent: #0d9488;
+  --data-accent-subtle: #ccfbf1;
 
   /* Refined, thin, high-contrast borders */
-  --border: rgba(15, 23, 42, 0.05);
-  --border-strong: rgba(15, 23, 42, 0.1);
+  --border: rgba(15, 23, 42, 0.08);
+  --border-strong: rgba(15, 23, 42, 0.15);
 
   /* Status Colors */
   --success: #0d9488;       /* Vibrant teal-green */
   --success-bg: #f0fdfa;
   --error: #be123c;         /* Soft burgundy/crimson */
   --error-bg: #fff1f2;
-  --warning: #d97706;
-  --warning-bg: #fffbeb;
+  --warning: #b45309;
+  --warning-bg: #fff7ed;
+  --role-admin: #4f46e5;
+  --role-teacher: #0284c7;
+  --role-student: #0891b2;
+  --info: #0284c7;
+  --info-bg: #f0f9ff;
+  --pending: #d97706;
+  --pending-bg: #fff7ed;
+
+  /* Semantic role and status tokens — use these instead of page-specific hex values */
+  --role-admin: #4f46e5;
+  --role-teacher: #0284c7;
+  --role-student: #0891b2;
+  --info: #0284c7;
+  --info-bg: #f0f9ff;
+  --pending: #d97706;
+  --pending-bg: #fff7ed;
+  --inactive: #64748b;
+  --inactive-bg: #f1f5f9;
+
+  /* Semantic role and status tokens — use these instead of page-specific hex values */
+  --role-admin: #4f46e5;
+  --role-teacher: #0284c7;
+  --role-student: #0891b2;
+  --info: #0284c7;
+  --info-bg: #f0f9ff;
+  --pending: #d97706;
+  --pending-bg: #fff7ed;
+  --inactive: #64748b;
+  --inactive-bg: #f1f5f9;
 
   /* Layout and border radius */
   --sidebar-width: 250px;
   --radius-sm: 10px;
   --radius-md: 14px;
   --radius-lg: 18px;
-  --radius-xl: 24px;
+  --radius-xl: 20px;
+  --radius-shell: 22px;
 
   /* Multi-layered soft organic shadows */
   --shadow-card: 0 1px 3px rgba(0,0,0,0.02), 0 4px 12px rgba(0,0,0,0.03), 0 0 0 1px rgba(15,23,42,0.04);
@@ -49,44 +84,82 @@
 }
 
 .dark {
-  /* Premium Dark Base Backgrounds */
-  --bg-base: #080c14;
-  --bg-card: #0f1626;
-  --bg-sidebar: #05080e;
-  --bg-sidebar-hover: #121927;
-  --bg-sidebar-active: #172033;
+  /* Dark Mode Base Backgrounds */
+  --bg-base: #0B0E1A;
+  --bg-base-end: #10162B;
+  --bg-gradient-end: #10162B;
+  --bg-recessed: #10162B;
+  --bg-card: #161C2F;
+  --surface-card: #161C2F;
+  --bg-elevated: #1C2338;
+  --surface-card-hover: #1C2338;
+  --bg-sidebar: #0a0e19;
+  --bg-sidebar-hover: #141c2e;
+  --bg-sidebar-active: #1a253d;
 
   /* Typography Colors */
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-primary: #F5F6FA;
+  --text-secondary: #8B93AC;
+  --text-muted: #8B93AC;
   --text-sidebar: #64748b;
   --text-sidebar-active: #f8fafc;
-  --text-on-yellow: #080c14;
+  --text-on-yellow: #ffffff;
 
-  /* Vibrant Accents - glowier for dark mode */
-  --accent: #f59e0b;
-  --accent-hover: #d97706;
-  --accent-subtle: rgba(245, 158, 11, 0.1);
+  /* Shared indigo-led accent system */
+  --accent-primary: #6366F1;
+  --accent-primary-muted: #A5A6F6;
+  --accent: #6366F1;
+  --accent-hover: #6366F1;
+  --accent-subtle: rgba(165, 166, 246, 0.15);
+  --data-accent: #A5A6F6;
+  --data-accent-subtle: rgba(165, 166, 246, 0.15);
 
-  /* High contrast dark borders */
-  --border: rgba(255, 255, 255, 0.04);
-  --border-strong: rgba(255, 255, 255, 0.08);
+  /* High contrast dark borders - define card edges clearly */
+  --border: #262E47;
+  --border-subtle: #262E47;
+  --border-strong: #262E47;
 
   /* Status Colors */
-  --success: #14b8a6;
-  --success-bg: rgba(20, 184, 166, 0.1);
-  --error: #f43f5e;
-  --error-bg: rgba(244, 63, 94, 0.1);
-  --warning: #f59e0b;
-  --warning-bg: rgba(245, 158, 11, 0.1);
+  --status-success: #34D399;
+  --success: #34D399;
+  --success-bg: rgba(52, 211, 153, 0.15);
+  --status-destructive: #EF4444;
+  --error: #EF4444;
+  --error-bg: rgba(239, 68, 68, 0.1);
+  --status-warning: #F5B94D;
+  --warning: #F5B94D;
+  --warning-bg: rgba(245, 185, 77, 0.15);
+  --role-admin: #6366F1;
+  --role-teacher: #6366F1;
+  --role-student: #6366F1;
+  --info: #6366F1;
+  --info-bg: rgba(165, 166, 246, 0.15);
+  --pending: #F5B94D;
+  --pending-bg: rgba(245, 185, 77, 0.15);
 
-  --shadow-card: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2), 0 0 0 1px rgba(255,255,255,0.03);
-  --shadow-raised: 0 4px 6px -1px rgba(0,0,0,0.2), 0 20px 48px -4px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04);
+  --role-admin: #818cf8;
+  --role-teacher: #38bdf8;
+  --role-student: #22d3ee;
+  --info: #38bdf8;
+  --info-bg: rgba(56, 189, 248, 0.12);
+  --pending: #fb923c;
+  --pending-bg: rgba(251, 146, 60, 0.12);
+  --inactive: #94a3b8;
+  --inactive-bg: rgba(148, 163, 184, 0.12);
+
+  --role-admin: #818cf8;
+  --role-teacher: #38bdf8;
+  --role-student: #22d3ee;
+  --info: #38bdf8;
+  --info-bg: rgba(56, 189, 248, 0.12);
+  --pending: #fb923c;
+  --pending-bg: rgba(251, 146, 60, 0.12);
+  --inactive: #94a3b8;
+  --inactive-bg: rgba(148, 163, 184, 0.12);
+
+  /* Shadows for card pop */
+  --shadow-card: 0 4px 20px -2px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06);
+  --shadow-raised: 0 8px 24px -4px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08);
   
   --noise-opacity: 0.025;
-}
-
-.dark {
-  /* Same as above because this is dark-mode-first */
 }

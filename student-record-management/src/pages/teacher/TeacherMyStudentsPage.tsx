@@ -1,9 +1,14 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { studentService } from '../../services/studentService';
-import { courseService } from '../../services/courseService';
-import { gradeService } from '../../services/gradeService';
-import { apiClient } from '../../services/api';
+import {
+  useGetCoursesQuery,
+  useGetEnrolledStudentsQuery,
+  useGetStudentsQuery,
+  useEnrollStudentMutation,
+  useUnenrollStudentMutation,
+  useMarkAttendanceMutation,
+  useCreateGradeMutation,
+} from '../../store';
 import {
   Search, UserPlus, UserMinus, Award, Calendar,
   CheckCircle, XCircle, Clock, X, AlertCircle, ChevronDown,
@@ -54,40 +59,45 @@ const Modal = ({
 /* ── Main Page ─────────────────────────────────────────── */
 const TeacherMyStudentsPage = () => {
   const { user } = useAuth();
+  const { data: coursesData } = useGetCoursesQuery();
 
   /* Course state */
-  const [myCourses, setMyCourses]       = useState<any[]>([]);
+  const [myCourses, setMyCourses] = useState<any[]>([]);
   const [selectedCourse, setSelectedCourse] = useState('');
 
-  /* Enrolled students state */
-  const [enrolled, setEnrolled]         = useState<any[]>([]);
-  const [loadingEnrolled, setLoadingEnrolled] = useState(false);
+  const { data: enrolledData, isLoading: loadingEnrolled } = useGetEnrolledStudentsQuery(selectedCourse, { skip: !selectedCourse });
+  const [enrollStudent] = useEnrollStudentMutation();
+  const [unenrollStudent] = useUnenrollStudentMutation();
+  const [markAttendance] = useMarkAttendanceMutation();
+  const [createGrade] = useCreateGradeMutation();
+
+  const enrolled = enrolledData ?? [];
 
   /* Search state */
-  const [query, setQuery]               = useState('');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [searching, setSearching]       = useState(false);
-  const [searched, setSearched]         = useState(false);
+  const [query, setQuery] = useState('');
+  const { data: searchData, isFetching: searching } = useGetStudentsQuery({ search: query }, { skip: !query });
+  const searchResults = searchData?.data ?? [];
+  const [searched, setSearched] = useState(false);
 
   /* Action modals */
   const [enrollTarget, setEnrollTarget] = useState<any | null>(null);
   const [attendanceTarget, setAttendanceTarget] = useState<any | null>(null);
-  const [gradeTarget, setGradeTarget]   = useState<any | null>(null);
+  const [gradeTarget, setGradeTarget] = useState<any | null>(null);
 
   /* Attendance form */
-  const [attDate, setAttDate]           = useState(new Date().toISOString().split('T')[0]);
-  const [attStatus, setAttStatus]       = useState<AttendanceStatus>('present');
-  const [attRemarks, setAttRemarks]     = useState('');
+  const [attDate, setAttDate] = useState(new Date().toISOString().split('T')[0]);
+  const [attStatus, setAttStatus] = useState<AttendanceStatus>('present');
+  const [attRemarks, setAttRemarks] = useState('');
 
   /* Grade form */
-  const [gradeVal, setGradeVal]         = useState<GradeValue>('A');
-  const [gradeScore, setGradeScore]     = useState(92);
+  const [gradeVal, setGradeVal] = useState<GradeValue>('A');
+  const [gradeScore, setGradeScore] = useState(92);
   const [gradeSemester, setGradeSemester] = useState('');
   const [gradeRemarks, setGradeRemarks] = useState('');
 
   /* Feedback */
-  const [toast, setToast]               = useState<{ msg: string; ok: boolean } | null>(null);
-  const [submitting, setSubmitting]     = useState(false);
+  const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const showToast = (msg: string, ok = true) => {
     setToast({ msg, ok });
@@ -96,49 +106,18 @@ const TeacherMyStudentsPage = () => {
 
   /* ── Load teacher's courses ──────────────────────────── */
   useEffect(() => {
-    courseService.getAll().then(all => {
-      const mine = all.filter(c =>
-        (c as any).instructor?.toLowerCase() === user?.name?.toLowerCase()
+    if (coursesData) {
+      const mine = coursesData.filter(c =>
+        c.instructor?.toLowerCase() === user?.name?.toLowerCase()
       );
       setMyCourses(mine);
-      if (mine.length > 0) setSelectedCourse((mine[0] as any)._id);
-    }).catch(() => {});
-  }, [user]);
-
-  /* ── Load enrolled students for selected course ─────── */
-  const loadEnrolled = useCallback(async (courseId: string) => {
-    if (!courseId) return;
-    setLoadingEnrolled(true);
-    try {
-      const data = await courseService.getEnrolledStudents(courseId);
-      setEnrolled(data);
-    } catch {
-      setEnrolled([]);
-    } finally {
-      setLoadingEnrolled(false);
+      if (mine.length > 0 && !selectedCourse) setSelectedCourse(mine[0]._id);
     }
-  }, []);
+  }, [coursesData, user]);
 
-  useEffect(() => {
-    loadEnrolled(selectedCourse);
-    setSearchResults([]);
-    setSearched(false);
-    setQuery('');
-  }, [selectedCourse, loadEnrolled]);
-
-  /* ── Student search ─────────────────────────────────── */
-  const handleSearch = async () => {
+  const handleSearch = () => {
     if (!query.trim()) return;
-    setSearching(true);
     setSearched(true);
-    try {
-      const results = await studentService.getAll({ search: query.trim() });
-      setSearchResults(results);
-    } catch {
-      setSearchResults([]);
-    } finally {
-      setSearching(false);
-    }
   };
 
   /* ── Enroll ─────────────────────────────────────────── */
@@ -146,10 +125,9 @@ const TeacherMyStudentsPage = () => {
     if (!enrollTarget || !selectedCourse) return;
     setSubmitting(true);
     try {
-      const res = await courseService.enroll(selectedCourse, enrollTarget._id) as any;
-      showToast(res.message || 'Enrolled successfully');
+      await enrollStudent({ courseId: selectedCourse, studentId: enrollTarget._id }).unwrap();
+      showToast('Enrolled successfully');
       setEnrollTarget(null);
-      loadEnrolled(selectedCourse);
     } catch (err: any) {
       showToast(err.message || 'Enrollment failed', false);
     } finally {
@@ -161,9 +139,8 @@ const TeacherMyStudentsPage = () => {
   const handleUnenroll = async (studentId: string, studentName: string) => {
     if (!window.confirm(`Remove ${studentName} from this course?`)) return;
     try {
-      const res = await courseService.unenroll(selectedCourse, studentId) as any;
-      showToast(res.message || 'Removed from course');
-      loadEnrolled(selectedCourse);
+      await unenrollStudent({ courseId: selectedCourse, studentId }).unwrap();
+      showToast('Removed from course');
     } catch (err: any) {
       showToast(err.message || 'Failed to remove', false);
     }
@@ -174,11 +151,11 @@ const TeacherMyStudentsPage = () => {
     if (!attendanceTarget || !selectedCourse) return;
     setSubmitting(true);
     try {
-      await apiClient.post('/attendance/mark', {
+      await markAttendance({
         courseId: selectedCourse,
         date: attDate,
         records: [{ studentId: attendanceTarget._id, status: attStatus, remarks: attRemarks }],
-      });
+      }).unwrap();
       showToast(`Attendance marked — ${attStatus} for ${attendanceTarget.name}`);
       setAttendanceTarget(null);
       setAttRemarks('');
@@ -194,14 +171,15 @@ const TeacherMyStudentsPage = () => {
     if (!gradeTarget || !selectedCourse || !gradeSemester.trim()) return;
     setSubmitting(true);
     try {
-      await gradeService.create({
+      await createGrade({
         studentId: gradeTarget._id,
         courseId: selectedCourse,
+        examType: 'see',
         grade: gradeVal,
         score: gradeScore,
         semester: gradeSemester,
         remarks: gradeRemarks || undefined,
-      } as any);
+      }).unwrap();
       showToast(`Grade ${gradeVal} added for ${gradeTarget.name}`);
       setGradeTarget(null);
       setGradeRemarks('');
@@ -273,7 +251,7 @@ const TeacherMyStudentsPage = () => {
             <div style={{ display: 'flex', gap: 12, fontSize: 12, color: 'var(--text-secondary)', flexShrink: 0 }}>
               <span>
                 <span style={{ color: 'var(--text-muted)' }}>Enrolled: </span>
-                <span style={{ fontWeight: 600, fontFamily: 'Geist Mono, monospace' }}>
+                <span style={{ fontWeight: 600, fontFamily: 'IBM Plex Mono, monospace' }}>
                   {(currentCourse as any).enrolledStudents} / {(currentCourse as any).maxStudents}
                 </span>
               </span>
@@ -337,7 +315,7 @@ const TeacherMyStudentsPage = () => {
                         width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
                         background: 'linear-gradient(135deg, #eab308, #ca8a04)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 11, fontWeight: 600, fontFamily: 'Geist Mono, monospace',
+                        fontSize: 11, fontWeight: 600, fontFamily: 'IBM Plex Mono, monospace',
                         color: 'var(--text-on-yellow)',
                       }}>
                         {s.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
@@ -380,7 +358,7 @@ const TeacherMyStudentsPage = () => {
                 Enrolled Students
                 <span style={{
                   marginLeft: 8, fontSize: 11,
-                  fontFamily: 'Geist Mono, monospace', fontWeight: 600,
+                  fontFamily: 'IBM Plex Mono, monospace', fontWeight: 600,
                   color: 'var(--accent)', backgroundColor: 'rgba(234,179,8,0.1)',
                   padding: '1px 6px', borderRadius: 4,
                 }}>
@@ -414,7 +392,7 @@ const TeacherMyStudentsPage = () => {
                   width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
                   background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 11, fontWeight: 600, fontFamily: 'Geist Mono, monospace', color: '#fff',
+                  fontSize: 11, fontWeight: 600, fontFamily: 'IBM Plex Mono, monospace', color: '#fff',
                 }}>
                   {s.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
                 </div>
@@ -498,8 +476,8 @@ const TeacherMyStudentsPage = () => {
               {(['present', 'late', 'absent'] as AttendanceStatus[]).map(s => {
                 const cfg = {
                   present: { color: 'var(--success)', bg: 'rgba(22,163,74,0.1)', Icon: CheckCircle },
-                  late:    { color: 'var(--warning)',  bg: 'rgba(217,119,6,0.1)', Icon: Clock },
-                  absent:  { color: 'var(--error)',    bg: 'rgba(220,38,38,0.1)', Icon: XCircle },
+                  late: { color: 'var(--warning)', bg: 'rgba(217,119,6,0.1)', Icon: Clock },
+                  absent: { color: 'var(--error)', bg: 'rgba(220,38,38,0.1)', Icon: XCircle },
                 }[s];
                 return (
                   <button

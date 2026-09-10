@@ -2,13 +2,15 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { useToastContext } from '../context/ToastContext';
-import { announcementService, Announcement } from '../services/announcementService';
+import type { Announcement } from '../services/announcementService';
+import { useAppDispatch } from '../store';
+import { baseApi, useCreateAnnouncementMutation, useDeleteAnnouncementMutation, useGetAnnouncementsQuery } from '../store';
 import { Megaphone, Plus, Trash2, AlertTriangle } from 'lucide-react';
 
 const PRIORITY_CONFIG: Record<string, { color: string; label: string; bg: string }> = {
-  normal:    { color: 'var(--text-secondary)', label: 'Notice',    bg: 'var(--bg-base)' },
-  important: { color: '#eab308',               label: 'Important', bg: 'rgba(234,179,8,0.08)' },
-  urgent:    { color: '#dc2626',               label: 'Urgent',    bg: 'rgba(220,38,38,0.08)' },
+  normal: { color: 'var(--text-secondary)', label: 'Notice', bg: 'var(--bg-base)' },
+  important: { color: 'var(--status-warning)', label: 'Important', bg: 'rgba(245,185,77,0.15)' },
+  urgent: { color: 'var(--status-destructive)', label: 'Urgent', bg: 'rgba(239,68,68,0.1)' },
 };
 
 const timeAgo = (dateStr: string) => {
@@ -26,38 +28,44 @@ const AnnouncementsPage = () => {
   const { socket, connected } = useSocket();
   const { success, error: toastError } = useToastContext();
 
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({ title: '', message: '', priority: 'normal' });
+  const dispatch = useAppDispatch();
+  const { data: rawAnnouncements, isLoading, error } = useGetAnnouncementsQuery();
+  const announcements: Announcement[] = Array.isArray(rawAnnouncements) ? rawAnnouncements : [];
+  const [createAnnouncement, { isLoading: isCreating }] = useCreateAnnouncementMutation();
+  const [deleteAnnouncement, { isLoading: isDeleting }] = useDeleteAnnouncementMutation();
 
   const canPost = user?.role === 'admin' || user?.role === 'teacher';
 
-  const fetchAnnouncements = async () => {
-    try {
-      setLoading(true);
-      const data = await announcementService.getAll();
-      setAnnouncements(data);
-    } catch {
-      toastError('Failed to load announcements.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { fetchAnnouncements(); }, []);
+  useEffect(() => {
+    if (error) toastError('Failed to load announcements.');
+  }, [error, toastError]);
 
   // ── Real-time: new announcements + deletions + presence ──
   useEffect(() => {
     if (!socket) return;
 
     const handleNew = (announcement: Announcement) => {
-      setAnnouncements(prev => [announcement, ...prev]);
+      dispatch(baseApi.util.updateQueryData('getAnnouncements', undefined, (current: any) => {
+        if (Array.isArray(current)) {
+          if (!current.some((item: Announcement) => item._id === announcement._id)) current.unshift(announcement);
+        } else if (current && Array.isArray(current.data)) {
+          if (!current.data.some((item: Announcement) => item._id === announcement._id)) current.data.unshift(announcement);
+        }
+      }));
     };
     const handleDeleted = ({ _id }: { _id: string }) => {
-      setAnnouncements(prev => prev.filter(a => a._id !== _id));
+      dispatch(baseApi.util.updateQueryData('getAnnouncements', undefined, (current: any) => {
+        if (Array.isArray(current)) {
+          const idx = current.findIndex((item: Announcement) => item._id === _id);
+          if (idx !== -1) current.splice(idx, 1);
+        } else if (current && Array.isArray(current.data)) {
+          current.data = current.data.filter((item: Announcement) => item._id !== _id);
+        }
+      }));
     };
     const handlePresence = ({ userId, online }: { userId: string; online: boolean }) => {
       setOnlineUsers(prev => {
@@ -81,14 +89,14 @@ const AnnouncementsPage = () => {
       socket.off('presence:update', handlePresence);
       socket.off('presence:list');
     };
-  }, [socket]);
+  }, [dispatch, socket]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title.trim() || !form.message.trim()) return;
     setSubmitting(true);
     try {
-      await announcementService.create(form);
+      await createAnnouncement(form).unwrap();
       success('Announcement posted!');
       setForm({ title: '', message: '', priority: 'normal' });
       setShowForm(false);
@@ -102,7 +110,7 @@ const AnnouncementsPage = () => {
   const handleDelete = async (id: string) => {
     if (!window.confirm('Delete this announcement?')) return;
     try {
-      await announcementService.delete(id);
+      await deleteAnnouncement(id).unwrap();
       success('Announcement deleted.');
     } catch {
       toastError('Failed to delete announcement.');
@@ -158,8 +166,8 @@ const AnnouncementsPage = () => {
                 })}
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
-                <button type="submit" className="btn btn-primary" disabled={submitting}>
-                  <span>{submitting ? 'Posting...' : 'Post Announcement'}</span>
+                <button type="submit" className="btn btn-primary" disabled={submitting || isCreating}>
+                  <span>{submitting || isCreating ? 'Posting...' : 'Post Announcement'}</span>
                 </button>
                 <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>
                   <span>Cancel</span>
@@ -170,9 +178,9 @@ const AnnouncementsPage = () => {
         </div>
       )}
 
-      {loading ? (
+      {isLoading ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {[1,2,3].map(i => <div key={i} className="skeleton" style={{ height: 100, borderRadius: 16 }} />)}
+          {[1, 2, 3].map(i => <div key={i} className="skeleton" style={{ height: 100, borderRadius: 16 }} />)}
         </div>
       ) : announcements.length === 0 ? (
         <div className="empty-state card animate-fade-up">
@@ -221,10 +229,10 @@ const AnnouncementsPage = () => {
                       <div style={{ position: 'relative' }}>
                         <div className="avatar" style={{
                           width: 22, height: 22, fontSize: 9,
-                          backgroundColor: a.postedByRole === 'admin' ? '#eab308' : '#3b82f6',
+                          backgroundColor: a.postedByRole === 'admin' ? 'var(--accent-primary)' : 'var(--accent-primary-muted)',
                           color: a.postedByRole === 'admin' ? '#09090b' : '#fff',
                         }}>
-                          {a.postedByName.split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase()}
+                          {a.postedByName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                         </div>
                         {isOnline && (
                           <span style={{
@@ -243,7 +251,7 @@ const AnnouncementsPage = () => {
                   </div>
 
                   {canPost && (
-                    <button onClick={() => handleDelete(a._id)} style={{
+                    <button onClick={() => handleDelete(a._id)} disabled={isDeleting} style={{
                       width: 28, height: 28, borderRadius: 6, flexShrink: 0,
                       border: '1px solid var(--border-strong)', backgroundColor: 'var(--bg-base)',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',

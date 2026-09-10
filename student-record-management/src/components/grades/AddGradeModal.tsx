@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
-import { courseService } from '../../services/courseService';
-import { gradeService } from '../../services/gradeService';
 import { GradeRecord, ExamType } from '../../types/grade.types';
 import { X, FileText, GraduationCap } from 'lucide-react';
+import {
+  useCreateGradeMutation,
+  useGetCoursesQuery,
+  useGetEnrolledStudentsQuery,
+  useUpdateGradeMutation,
+} from '../../store';
 
 interface AddGradeModalProps {
   isOpen: boolean;
@@ -15,54 +18,44 @@ interface AddGradeModalProps {
 const GRADE_OPTIONS = ['A+', 'A', 'B+', 'B', 'C+', 'C', 'D', 'F'];
 
 export const AddGradeModal = ({ isOpen, onClose, onSuccess, editingGrade }: AddGradeModalProps) => {
-  const { user } = useAuth();
-  const [courses, setCourses]   = useState<any[]>([]);
-  const [students, setStudents] = useState<any[]>([]);
-  const [loadingStudents, setLoadingStudents] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError]       = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const [form, setForm] = useState({
-    courseId:  '',
+    courseId: '',
     studentId: '',
-    examType:  'see' as ExamType,
-    grade:     'A',
-    score:     0,
-    semester:  '',
-    remarks:   '',
+    examType: 'see' as ExamType,
+    grade: 'A',
+    score: 0,
+    semester: '',
+    remarks: '',
   });
+  const { data: allCourses = [] } = useGetCoursesQuery();
+  const courses = allCourses.filter(c => (c as any).status === 'active');
+  const { data: students = [], isLoading: loadingStudents } = useGetEnrolledStudentsQuery(form.courseId, {
+    skip: !form.courseId,
+  });
+  const [createGrade] = useCreateGradeMutation();
+  const [updateGrade] = useUpdateGradeMutation();
 
   useEffect(() => {
     if (!isOpen) return;
     setError(null);
 
-    courseService.getAll().then(data => {
-      setCourses(data.filter((c: any) => c.status === 'active'));
-    }).catch(() => setError('Failed to load courses'));
-
     if (editingGrade) {
       setForm({
-        courseId:  String(editingGrade.courseId),
+        courseId: String(editingGrade.courseId),
         studentId: String(editingGrade.studentId),
-        examType:  editingGrade.examType ?? 'see',
-        grade:     String(editingGrade.grade),
-        score:     editingGrade.score,
-        semester:  editingGrade.semester,
-        remarks:   editingGrade.remarks ?? '',
+        examType: editingGrade.examType ?? 'see',
+        grade: String(editingGrade.grade),
+        score: editingGrade.score,
+        semester: editingGrade.semester,
+        remarks: editingGrade.remarks ?? '',
       });
     } else {
       setForm({ courseId: '', studentId: '', examType: 'see', grade: 'A', score: 0, semester: '', remarks: '' });
     }
   }, [isOpen, editingGrade]);
-
-  useEffect(() => {
-    if (!form.courseId) { setStudents([]); return; }
-    setLoadingStudents(true);
-    courseService.getEnrolledStudents(form.courseId)
-      .then(data => setStudents(data))
-      .catch(() => setStudents([]))
-      .finally(() => setLoadingStudents(false));
-  }, [form.courseId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,9 +71,9 @@ export const AddGradeModal = ({ isOpen, onClose, onSuccess, editingGrade }: AddG
     setError(null);
     try {
       if (editingGrade) {
-        await gradeService.update(editingGrade._id, form);
+        await updateGrade({ id: editingGrade._id, data: form }).unwrap();
       } else {
-        await gradeService.create(form as any);
+        await createGrade(form).unwrap();
       }
       onSuccess();
       onClose();
@@ -184,8 +177,8 @@ export const AddGradeModal = ({ isOpen, onClose, onSuccess, editingGrade }: AddG
                 <option value="">
                   {!form.courseId ? '— Select course first —'
                     : loadingStudents ? 'Loading students...'
-                    : students.length === 0 ? '— No enrolled students —'
-                    : '— Select student —'}
+                      : students.length === 0 ? '— No enrolled students —'
+                        : '— Select student —'}
                 </option>
                 {students.map(s => (
                   <option key={s._id} value={s._id}>{s.name}</option>

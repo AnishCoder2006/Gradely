@@ -3,6 +3,8 @@ import Announcement from '../models/Announcement';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { getIO } from '../socket';
 
+import { clearCachePattern } from '../services/redis.service';
+
 export class AnnouncementController {
 
   async getAll(_req: AuthRequest, res: Response, next: NextFunction) {
@@ -31,6 +33,7 @@ export class AnnouncementController {
       });
 
       getIO().to('announcements').emit('announcement:new', announcement);
+      await clearCachePattern('cache:*announcements*');
 
       res.status(201).json({ success: true, data: announcement, message: 'Announcement posted' });
     } catch (error) { next(error); }
@@ -44,6 +47,7 @@ export class AnnouncementController {
         return;
       }
       getIO().to('announcements').emit('announcement:deleted', { _id: req.params.id });
+      await clearCachePattern('cache:*announcements*');
       res.status(200).json({ success: true, message: 'Announcement deleted' });
     } catch (error) { next(error); }
   }

@@ -1,6 +1,27 @@
+/* ==========================================================================
+   KEYFRAME DEFINITIONS
+   ========================================================================== */
+
 @keyframes fade-up {
-  from { opacity: 0; transform: translateY(16px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { 
+    opacity: 0; 
+    transform: translateY(16px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+@keyframes fade-down {
+  from { 
+    opacity: 0; 
+    transform: translateY(-16px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
 }
 
 @keyframes fade-in {
@@ -9,13 +30,36 @@
 }
 
 @keyframes scale-in {
-  from { opacity: 0; transform: scale(0.96) translateY(8px); }
-  to   { opacity: 1; transform: scale(1) translateY(0); }
+  from { 
+    opacity: 0; 
+    transform: scale(0.96) translateY(8px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: scale(1) translateY(0); 
+  }
 }
 
 @keyframes slide-in-left {
-  from { opacity: 0; transform: translateX(-16px); }
-  to   { opacity: 1; transform: translateX(0); }
+  from { 
+    opacity: 0; 
+    transform: translateX(-16px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateX(0); 
+  }
+}
+
+@keyframes slide-in-right {
+  from { 
+    opacity: 0; 
+    transform: translateX(16px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateX(0); 
+  }
 }
 
 @keyframes shimmer {
@@ -25,20 +69,45 @@
 
 @keyframes float {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-15px); }
+  50%      { transform: translateY(-8px); }
 }
 
 @keyframes pulse-dot {
-  0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(13, 148, 136, 0.4); }
-  50%       { opacity: 0.6; transform: scale(0.85); box-shadow: 0 0 0 6px rgba(13, 148, 136, 0); }
+  0%, 100% { 
+    opacity: 1; 
+    transform: scale(1); 
+    box-shadow: 0 0 0 0 rgba(13, 148, 136, 0.4); 
+  }
+  50% { 
+    opacity: 0.6; 
+    transform: scale(0.85); 
+    box-shadow: 0 0 0 6px rgba(13, 148, 136, 0); 
+  }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { 
+    box-shadow: 0 0 15px rgba(79, 70, 229, 0.16); 
+  }
+  50% { 
+    box-shadow: 0 0 28px rgba(79, 70, 229, 0.32); 
+  }
 }
 
 @keyframes btn-spin {
   to { transform: rotate(360deg); }
 }
 
+/* ==========================================================================
+   UTILITY ANIMATION CLASSES
+   ========================================================================== */
+
 .animate-fade-up {
   animation: fade-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-fade-down {
+  animation: fade-down 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .animate-fade-in {
@@ -53,14 +122,33 @@
   animation: slide-in-left 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* Staggered load animation lists */
-.stagger > *:nth-child(1) { animation: fade-up 0.4s cubic-bezier(0.16,1,0.3,1) 0ms   both; }
-.stagger > *:nth-child(2) { animation: fade-up 0.4s cubic-bezier(0.16,1,0.3,1) 50ms  both; }
-.stagger > *:nth-child(3) { animation: fade-up 0.4s cubic-bezier(0.16,1,0.3,1) 100ms both; }
-.stagger > *:nth-child(4) { animation: fade-up 0.4s cubic-bezier(0.16,1,0.3,1) 150ms both; }
-.stagger > *:nth-child(5) { animation: fade-up 0.4s cubic-bezier(0.16,1,0.3,1) 200ms both; }
-.stagger > *:nth-child(6) { animation: fade-up 0.4s cubic-bezier(0.16,1,0.3,1) 250ms both; }
+.animate-slide-right {
+  animation: slide-in-right 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
 
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.animate-glow {
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+/* Micro-interactions */
+.hover-lift {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-3px);
+}
+
+/* Page Mount Transition */
+.page-enter {
+  animation: fade-up 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Indicator status dot */
 .pulse-dot {
   width: 8px;
   height: 8px;
@@ -71,6 +159,32 @@
   flex-shrink: 0;
 }
 
-.page-enter {
-  animation: fade-up 0.38s cubic-bezier(0.16, 1, 0.3, 1) both;
+/* ==========================================================================
+   STAGGERED LIST / GRID ANIMATIONS
+   ========================================================================== */
+
+.stagger > *:nth-child(1)  { animation: fade-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) 0ms   both; }
+.stagger > *:nth-child(2)  { animation: fade-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) 40ms  both; }
+.stagger > *:nth-child(3)  { animation: fade-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) 80ms  both; }
+.stagger > *:nth-child(4)  { animation: fade-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) 120ms both; }
+.stagger > *:nth-child(5)  { animation: fade-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) 160ms both; }
+.stagger > *:nth-child(6)  { animation: fade-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) 200ms both; }
+.stagger > *:nth-child(7)  { animation: fade-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) 240ms both; }
+.stagger > *:nth-child(8)  { animation: fade-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) 280ms both; }
+.stagger > *:nth-child(9)  { animation: fade-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) 320ms both; }
+.stagger > *:nth-child(10) { animation: fade-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) 360ms both; }
+
+/* ==========================================================================
+   ACCESSIBILITY OVERRIDES
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

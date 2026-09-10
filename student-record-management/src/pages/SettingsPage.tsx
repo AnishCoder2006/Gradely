@@ -7,7 +7,8 @@ import { attendanceService } from '../services/attendanceService';
 import { exportTranscriptPDF } from '../utils/pdfExport';
 import { useToastContext } from '../context/ToastContext';
 import { SettingsSection, SettingsRow, Toggle } from './SettingsShared';
-import { Sun, Moon, Bell, Shield, Database, User, ChevronRight, Building, BookOpen, Download } from 'lucide-react';
+import { SettingsMfaSection } from './SettingsMfaSection';
+import { Sun, Moon, Shield, Database, User, ChevronRight, Building, BookOpen, Download } from 'lucide-react';
 
 const SettingsPage = () => {
   const { user } = useAuth();
@@ -185,13 +186,12 @@ const SettingsPage = () => {
         </SettingsSection>
       )}
 
+      {/* Security & Multi-Factor Authentication Section */}
+      <SettingsMfaSection />
+
       <SettingsSection title="Security">
         <SettingsRow icon={Shield} label="Change Password" description="Last changed 30 days ago"
           action={<button className="btn btn-secondary" style={{ fontSize: 12, padding: '5px 12px' }}><span>Update</span><ChevronRight size={12} /></button>} />
-        {user?.role === 'admin' && (
-          <SettingsRow icon={Shield} label="Two-Factor Authentication" description="Add an extra layer of security"
-            action={<span className="badge badge-gray">Off</span>} />
-        )}
       </SettingsSection>
 
       {user?.role === 'admin' && (

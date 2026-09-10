@@ -1,69 +1,49 @@
-import { useEffect, useState } from 'react';
-import { useAuth } from '../../context/AuthContext';
-import { courseService } from '../../services/courseService';
-import { apiClient } from '../../services/api';
+import { useState } from 'react';
+import {
+  useGetCoursesQuery,
+  useGetStudentsQuery,
+  useGetEnrolledStudentsQuery,
+  useEnrollStudentMutation,
+  useUnenrollStudentMutation,
+} from '../../store';
 import { useNavigate } from 'react-router-dom';
 import { BookOpen, Users, Plus, Clock, CheckCircle, XCircle, UserPlus, UserMinus } from 'lucide-react';
 
 const UpdatedMyCoursesPage = () => {
-  const { user }  = useAuth();
-  const navigate  = useNavigate();
-  const [courses, setCourses]   = useState<any[]>([]);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState<string | null>(null);
-  const [success, setSuccess]   = useState<string | null>(null);
+  const navigate = useNavigate();
+
+  const { data: coursesData, isLoading: loadingCourses, error: coursesErr } = useGetCoursesQuery();
+  const { data: studentsData } = useGetStudentsQuery({});
+
+  const [enrollStudent] = useEnrollStudentMutation();
+  const [unenrollStudent] = useUnenrollStudentMutation();
+
+  const courses = coursesData ?? [];
+  const allStudents = studentsData?.data ?? [];
+  const loading = loadingCourses;
+
+  const [error, setError] = useState<string | null>(coursesErr ? 'Failed to load courses.' : null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   // Enroll student modal
-  const [enrollModal, setEnrollModal]   = useState<{ courseId: string; courseName: string } | null>(null);
-  const [allStudents, setAllStudents]   = useState<any[]>([]);
-  const [enrolled, setEnrolled]         = useState<any[]>([]);
-  const [enrollTab, setEnrollTab]       = useState<'enrolled' | 'add'>('enrolled');
-  const [loadingStudents, setLoadingStudents] = useState(false);
-  const [enrolling, setEnrolling]       = useState<string | null>(null);
-
-  const fetchCourses = async () => {
-    try {
-      setLoading(true);
-      const data = await courseService.getAll();
-      setCourses(data);
-    } catch {
-      setError('Failed to load courses.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { fetchCourses(); }, [user]);
+  const [enrollModal, setEnrollModal] = useState<{ courseId: string; courseName: string } | null>(null);
+  const { data: enrolledStudentsData } = useGetEnrolledStudentsQuery(enrollModal?.courseId ?? '', { skip: !enrollModal?.courseId });
+  const enrolled = enrolledStudentsData ?? [];
+  const [enrollTab, setEnrollTab] = useState<'enrolled' | 'add'>('enrolled');
+  const [enrolling, setEnrolling] = useState<string | null>(null);
 
   const openEnrollModal = async (courseId: string, courseName: string) => {
     setEnrollModal({ courseId, courseName });
     setEnrollTab('enrolled');
-    setLoadingStudents(true);
-    try {
-      const [enrolledData, allData] = await Promise.all([
-        courseService.getEnrolledStudents(courseId),
-        apiClient.get<any[]>('/students'),
-      ]);
-      setEnrolled(enrolledData);
-      setAllStudents(allData);
-    } catch {
-      setError('Failed to load students.');
-    } finally {
-      setLoadingStudents(false);
-    }
   };
 
   const handleEnroll = async (studentId: string, studentName: string) => {
     if (!enrollModal) return;
     setEnrolling(studentId);
     try {
-      await courseService.enroll(enrollModal.courseId, studentId);
+      await enrollStudent({ courseId: enrollModal.courseId, studentId }).unwrap();
       setSuccess(`${studentName} enrolled successfully`);
       setTimeout(() => setSuccess(null), 3000);
-      // Refresh enrolled list
-      const updated = await courseService.getEnrolledStudents(enrollModal.courseId);
-      setEnrolled(updated);
-      fetchCourses();
     } catch (e: any) {
       setError(e.message || 'Failed to enroll student.');
     } finally {
@@ -76,12 +56,9 @@ const UpdatedMyCoursesPage = () => {
     if (!window.confirm(`Remove ${studentName} from this course?`)) return;
     setEnrolling(studentId);
     try {
-      await courseService.unenroll(enrollModal.courseId, studentId);
+      await unenrollStudent({ courseId: enrollModal.courseId, studentId }).unwrap();
       setSuccess(`${studentName} removed`);
       setTimeout(() => setSuccess(null), 3000);
-      const updated = await courseService.getEnrolledStudents(enrollModal.courseId);
-      setEnrolled(updated);
-      fetchCourses();
     } catch (e: any) {
       setError(e.message || 'Failed to unenroll.');
     } finally {
@@ -89,17 +66,17 @@ const UpdatedMyCoursesPage = () => {
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    if (status === 'active')   return <CheckCircle size={14} style={{ color: 'var(--success)' }} />;
-    if (status === 'pending')  return <Clock       size={14} style={{ color: 'var(--accent)' }} />;
-    if (status === 'rejected') return <XCircle     size={14} style={{ color: 'var(--error)' }} />;
+  const getStatusIcon = (status?: string) => {
+    if (status === 'active') return <CheckCircle size={14} style={{ color: 'var(--success)' }} />;
+    if (status === 'pending') return <Clock size={14} style={{ color: 'var(--accent)' }} />;
+    if (status === 'rejected') return <XCircle size={14} style={{ color: 'var(--error)' }} />;
     return null;
   };
 
-  const enrolledIds = new Set(enrolled.map(s => s._id));
-  const unenrolledStudents = allStudents.filter(s => !enrolledIds.has(s._id) && s.status === 'active');
+  const enrolledIds = new Set(enrolled.map((s: any) => s._id));
+  const unenrolledStudents = allStudents.filter((s: any) => !enrolledIds.has(s._id) && s.status === 'active');
 
-  const activeCourses  = courses.filter(c => c.status === 'active');
+  const activeCourses = courses.filter(c => c.status === 'active');
   const pendingCourses = courses.filter(c => c.status === 'pending');
   const rejectedCourses = courses.filter(c => c.status === 'rejected');
 
@@ -120,7 +97,7 @@ const UpdatedMyCoursesPage = () => {
         </button>
       </div>
 
-      {error   && <div className="alert-error animate-fade-in">{error}</div>}
+      {error && <div className="alert-error animate-fade-in">{error}</div>}
       {success && (
         <div style={{
           padding: '10px 16px', borderRadius: 8, fontSize: 13,
@@ -149,7 +126,7 @@ const UpdatedMyCoursesPage = () => {
 
                 <div className="flex-between" style={{ marginBottom: 10 }}>
                   <span style={{
-                    fontFamily: 'Geist Mono, monospace', fontSize: 11, fontWeight: 600,
+                    fontFamily: 'IBM Plex Mono, monospace', fontSize: 11, fontWeight: 600,
                     color: 'var(--accent)', backgroundColor: 'rgba(234,179,8,0.1)',
                     padding: '3px 8px', borderRadius: 6,
                   }}>
@@ -209,7 +186,7 @@ const UpdatedMyCoursesPage = () => {
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{
-                          fontFamily: 'Geist Mono, monospace', fontSize: 10,
+                          fontFamily: 'IBM Plex Mono, monospace', fontSize: 10,
                           color: 'var(--accent)', backgroundColor: 'rgba(234,179,8,0.1)',
                           padding: '2px 6px', borderRadius: 4,
                         }}>
@@ -239,7 +216,7 @@ const UpdatedMyCoursesPage = () => {
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{
-                        fontFamily: 'Geist Mono, monospace', fontSize: 10,
+                        fontFamily: 'IBM Plex Mono, monospace', fontSize: 10,
                         color: 'var(--error)', backgroundColor: 'var(--error-bg)',
                         padding: '2px 6px', borderRadius: 4,
                       }}>
@@ -285,13 +262,14 @@ const UpdatedMyCoursesPage = () => {
             <div className="divider" style={{ margin: '0 0 16px' }} />
 
             {/* Sub-tabs */}
-            <div style={{ display: 'flex', gap: 4, marginBottom: 16,
+            <div style={{
+              display: 'flex', gap: 4, marginBottom: 16,
               backgroundColor: 'var(--bg-base)', padding: 3, borderRadius: 8,
               border: '1px solid var(--border)',
             }}>
               {([
                 { key: 'enrolled', label: `Enrolled (${enrolled.length})` },
-                { key: 'add',      label: `Add Students (${unenrolledStudents.length})` },
+                { key: 'add', label: `Add Students (${unenrolledStudents.length})` },
               ] as const).map(t => (
                 <button
                   key={t.key}
@@ -300,7 +278,7 @@ const UpdatedMyCoursesPage = () => {
                     flex: 1, padding: '6px 0',
                     borderRadius: 6, border: 'none', cursor: 'pointer',
                     fontSize: 12, fontWeight: 500,
-                    fontFamily: 'Geist, sans-serif',
+                    fontFamily: 'Instrument Sans, sans-serif',
                     backgroundColor: enrollTab === t.key ? 'var(--bg-card)' : 'transparent',
                     color: enrollTab === t.key ? 'var(--text-primary)' : 'var(--text-muted)',
                     transition: 'all 0.15s',
@@ -312,7 +290,7 @@ const UpdatedMyCoursesPage = () => {
             </div>
 
             <div style={{ maxHeight: 320, overflowY: 'auto' }}>
-              {loadingStudents ? (
+              {false ? (
                 Array.from({ length: 3 }).map((_, i) => (
                   <div key={i} className="skeleton" style={{ height: 44, borderRadius: 8, marginBottom: 8 }} />
                 ))
@@ -323,7 +301,7 @@ const UpdatedMyCoursesPage = () => {
                     <p className="empty-state-body">Switch to "Add Students" to enroll.</p>
                   </div>
                 ) : (
-                  enrolled.map((s, i) => (
+                  enrolled.map((s: any) => (
                     <div
                       key={s._id}
                       className="flex-between"
@@ -336,7 +314,7 @@ const UpdatedMyCoursesPage = () => {
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <div className="avatar" style={{ width: 28, height: 28, fontSize: 10 }}>
-                          {s.name.split(' ').map((n: string) => n[0]).join('').slice(0,2).toUpperCase()}
+                          {s.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
                         </div>
                         <div>
                           <p style={{ fontSize: 13, fontWeight: 500, margin: 0 }}>{s.name}</p>
@@ -361,7 +339,7 @@ const UpdatedMyCoursesPage = () => {
                     <p className="empty-state-title">All active students enrolled</p>
                   </div>
                 ) : (
-                  unenrolledStudents.map(s => (
+                  unenrolledStudents.map((s: any) => (
                     <div
                       key={s._id}
                       className="flex-between"
@@ -374,7 +352,7 @@ const UpdatedMyCoursesPage = () => {
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <div className="avatar" style={{ width: 28, height: 28, fontSize: 10 }}>
-                          {s.name.split(' ').map((n: string) => n[0]).join('').slice(0,2).toUpperCase()}
+                          {s.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
                         </div>
                         <div>
                           <p style={{ fontSize: 13, fontWeight: 500, margin: 0 }}>{s.name}</p>

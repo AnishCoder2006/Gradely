@@ -1,7 +1,5 @@
-import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { studentService } from '../services/studentService';
-import { Student } from '../types/student.types';
+import { useGetStudentByIdQuery } from '../store';
 import { useTheme } from '../context/ThemeContext';
 import {
   ArrowLeft, Mail, Phone, MapPin, Calendar,
@@ -9,17 +7,17 @@ import {
 } from 'lucide-react';
 
 const MOCK_COURSES = [
-  { code: 'CS401', name: 'Data Structures',   grade: 'A',  score: 92, semester: 'Fall 2025' },
+  { code: 'CS401', name: 'Data Structures', grade: 'A', score: 92, semester: 'Fall 2025' },
   { code: 'CS302', name: 'Computer Networks', grade: 'B+', score: 85, semester: 'Fall 2025' },
   { code: 'MA201', name: 'Advanced Calculus', grade: 'A+', score: 97, semester: 'Fall 2025' },
-  { code: 'PH101', name: 'Physics Lab',       grade: 'B',  score: 78, semester: 'Spring 2025' },
+  { code: 'PH101', name: 'Physics Lab', grade: 'B', score: 78, semester: 'Spring 2025' },
 ];
 
 const MOCK_ACTIVITY = [
   { text: 'Submitted Data Structures Assignment 3', time: '2 days ago' },
-  { text: 'Attendance marked — Computer Networks',  time: '3 days ago' },
-  { text: 'Grade updated — Advanced Calculus',      time: '1 week ago' },
-  { text: 'Enrolled in Physics Lab',                time: '2 weeks ago' },
+  { text: 'Attendance marked — Computer Networks', time: '3 days ago' },
+  { text: 'Grade updated — Advanced Calculus', time: '1 week ago' },
+  { text: 'Enrolled in Physics Lab', time: '2 weeks ago' },
 ];
 
 const GradeBadge = ({ grade }: { grade: string }) => {
@@ -107,7 +105,7 @@ const StatPill = ({
       <Icon size={16} style={{ color }} />
     </div>
     <p style={{
-      fontFamily: 'Geist Mono, monospace', fontSize: 20,
+      fontFamily: 'IBM Plex Mono, monospace', fontSize: 20,
       fontWeight: 500, color: 'var(--text-primary)',
       letterSpacing: '-0.03em', margin: 0,
     }}>
@@ -129,24 +127,8 @@ const StudentProfilePage = () => {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
-  const [student, setStudent] = useState<Student | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchStudent = async () => {
-      try {
-        setLoading(true);
-        const data = await studentService.getById(id!);
-        setStudent(data);
-      } catch {
-        setError('Failed to load student profile.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchStudent();
-  }, [id]);
+  const { data: student, isLoading: loading, error: fetchError } = useGetStudentByIdQuery(id!, { skip: !id });
+  const error = fetchError ? 'Failed to load student profile.' : null;
 
   // ── Loading ──
   if (loading) {
@@ -194,14 +176,14 @@ const StudentProfilePage = () => {
 
   const dob = student.dateOfBirth
     ? new Date(student.dateOfBirth).toLocaleDateString('en-IN', {
-        day: 'numeric', month: 'long', year: 'numeric',
-      })
+      day: 'numeric', month: 'long', year: 'numeric',
+    })
     : '—';
 
   const enrolledOn = student.enrollmentDate
     ? new Date(student.enrollmentDate).toLocaleDateString('en-IN', {
-        day: 'numeric', month: 'long', year: 'numeric',
-      })
+      day: 'numeric', month: 'long', year: 'numeric',
+    })
     : '—';
 
   const shortId = String(student._id ?? '').slice(0, 8).toUpperCase();
@@ -256,7 +238,7 @@ const StudentProfilePage = () => {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               margin: '0 auto 16px',
               fontSize: 26, fontWeight: 600,
-              fontFamily: 'Geist Mono, monospace',
+              fontFamily: 'IBM Plex Mono, monospace',
               color: '#09090b',
               boxShadow: '0 8px 24px rgba(234,179,8,0.35)',
             }}>
@@ -273,14 +255,13 @@ const StudentProfilePage = () => {
             <p style={{
               fontSize: 12, color: 'var(--text-muted)',
               margin: '0 0 14px',
-              fontFamily: 'Geist Mono, monospace',
+              fontFamily: 'IBM Plex Mono, monospace',
             }}>
               <span>ID: {shortId}</span>
             </p>
 
-            <span className={`badge ${
-              student.status === 'active' ? 'badge-green' : 'badge-gray'
-            }`}>
+            <span className={`badge ${student.status === 'active' ? 'badge-green' : 'badge-gray'
+              }`}>
               {student.status}
             </span>
 
@@ -290,11 +271,11 @@ const StudentProfilePage = () => {
               display: 'flex', flexDirection: 'column',
               gap: 16, textAlign: 'left' as const,
             }}>
-              <InfoRow icon={Mail}     label="Email"         value={student.email} />
-              <InfoRow icon={Phone}    label="Phone"         value={student.phone} />
-              <InfoRow icon={MapPin}   label="Address"       value={student.address} />
+              <InfoRow icon={Mail} label="Email" value={student.email} />
+              <InfoRow icon={Phone} label="Phone" value={student.phone} />
+              <InfoRow icon={MapPin} label="Address" value={student.address} />
               <InfoRow icon={Calendar} label="Date of Birth" value={dob} />
-              <InfoRow icon={Clock}    label="Enrolled On"   value={enrolledOn} />
+              <InfoRow icon={Clock} label="Enrolled On" value={enrolledOn} />
               <InfoRow
                 icon={User}
                 label="Gender"
@@ -314,9 +295,9 @@ const StudentProfilePage = () => {
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {[
-                { label: 'Send Email',      icon: Mail },
+                { label: 'Send Email', icon: Mail },
                 { label: 'View Transcript', icon: BookOpen },
-                { label: 'Edit Profile',    icon: User },
+                { label: 'Edit Profile', icon: User },
               ].map(action => (
                 <button
                   key={action.label}
@@ -342,9 +323,9 @@ const StudentProfilePage = () => {
           <GlassCard isDark={isDark}>
             <div style={{ display: 'flex' }}>
               {[
-                { icon: BookOpen,   label: 'Courses',    value: courseCount,        color: '#3b82f6' },
-                { icon: Award,      label: 'GPA',        value: student.gpa ?? '—', color: '#eab308' },
-                { icon: TrendingUp, label: 'Attendance', value: '87%',              color: '#22c55e' },
+                { icon: BookOpen, label: 'Courses', value: courseCount, color: '#3b82f6' },
+                { icon: Award, label: 'GPA', value: student.gpa ?? '—', color: '#eab308' },
+                { icon: TrendingUp, label: 'Attendance', value: '87%', color: '#22c55e' },
                 {
                   icon: Calendar,
                   label: 'Status',
@@ -386,9 +367,9 @@ const StudentProfilePage = () => {
                   animationDelay: `${i * 50}ms`,
                 }}
                 onMouseEnter={e =>
-                  (e.currentTarget.style.backgroundColor = isDark
-                    ? 'rgba(234,179,8,0.06)'
-                    : 'rgba(234,179,8,0.04)')
+                (e.currentTarget.style.backgroundColor = isDark
+                  ? 'rgba(234,179,8,0.06)'
+                  : 'rgba(234,179,8,0.04)')
                 }
                 onMouseLeave={e =>
                   (e.currentTarget.style.backgroundColor = 'transparent')
@@ -396,7 +377,7 @@ const StudentProfilePage = () => {
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                   <span style={{
-                    fontFamily: 'Geist Mono, monospace', fontSize: 11,
+                    fontFamily: 'IBM Plex Mono, monospace', fontSize: 11,
                     fontWeight: 500, color: 'var(--accent)',
                     backgroundColor: 'rgba(234,179,8,0.1)',
                     padding: '3px 8px', borderRadius: 6,
@@ -418,7 +399,7 @@ const StudentProfilePage = () => {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <span style={{
-                    fontFamily: 'Geist Mono, monospace',
+                    fontFamily: 'IBM Plex Mono, monospace',
                     fontSize: 13, fontWeight: 500,
                     color: 'var(--text-primary)',
                   }}>
@@ -476,7 +457,7 @@ const StudentProfilePage = () => {
                     <p style={{
                       fontSize: 11, color: 'var(--text-muted)',
                       margin: '3px 0 0',
-                      fontFamily: 'Geist Mono, monospace',
+                      fontFamily: 'IBM Plex Mono, monospace',
                     }}>
                       {item.time}
                     </p>

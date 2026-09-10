@@ -1,8 +1,9 @@
-import { Request, Response, NextFunction } from 'express';
+import { Response, NextFunction } from 'express';
 import Attendance from '../models/Attendance';
 import Student from '../models/Student';
 import User from '../models/User';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { writeAuditLog } from '../services/audit.service';
 
 export class AttendanceController {
 
@@ -12,13 +13,13 @@ export class AttendanceController {
       const { courseId, date, studentId } = req.query;
       const filter: any = {};
 
-      if (courseId)   filter.courseId = courseId;
-      if (studentId)  filter.studentId = studentId;
+      if (courseId) filter.courseId = courseId;
+      if (studentId) filter.studentId = studentId;
       if (date) {
         const d = new Date(date as string);
         filter.date = {
-          $gte: new Date(d.setHours(0,0,0,0)),
-          $lte: new Date(d.setHours(23,59,59,999)),
+          $gte: new Date(d.setHours(0, 0, 0, 0)),
+          $lte: new Date(d.setHours(23, 59, 59, 999)),
         };
       }
 
@@ -43,15 +44,15 @@ export class AttendanceController {
         .sort({ date: -1 });
 
       const data = attendance.map(a => ({
-        _id:         a._id,
-        studentId:   (a.studentId as any)._id,
+        _id: a._id,
+        studentId: (a.studentId as any)._id,
         studentName: (a.studentId as any).name ?? '',
-        courseId:    (a.courseId as any)._id,
-        courseName:  (a.courseId as any).name ?? '',
-        courseCode:  (a.courseId as any).code ?? '',
-        date:        a.date,
-        status:      a.status,
-        remarks:     a.remarks,
+        courseId: (a.courseId as any)._id,
+        courseName: (a.courseId as any).name ?? '',
+        courseCode: (a.courseId as any).code ?? '',
+        date: a.date,
+        status: a.status,
+        remarks: a.remarks,
       }));
 
       res.status(200).json({ success: true, data });
@@ -76,22 +77,25 @@ export class AttendanceController {
 
       const d = new Date(date);
       const results = [];
+      let createdCount = 0;
+      let updatedCount = 0;
 
       for (const record of records) {
         const existing = await Attendance.findOne({
           studentId: record.studentId,
           courseId,
           date: {
-            $gte: new Date(new Date(d).setHours(0,0,0,0)),
-            $lte: new Date(new Date(d).setHours(23,59,59,999)),
+            $gte: new Date(new Date(d).setHours(0, 0, 0, 0)),
+            $lte: new Date(new Date(d).setHours(23, 59, 59, 999)),
           },
         });
 
         if (existing) {
-          existing.status  = record.status;
+          existing.status = record.status;
           existing.remarks = record.remarks;
           await existing.save();
           results.push(existing);
+          updatedCount++;
         } else {
           const entry = await Attendance.create({
             studentId: record.studentId,
@@ -102,8 +106,18 @@ export class AttendanceController {
             markedBy: req.user!.id,
           });
           results.push(entry);
+          createdCount++;
         }
       }
+
+      await writeAuditLog({
+        actorId: req.user?.id,
+        actorRole: req.user?.role,
+        action: 'attendance.marked',
+        entity: 'attendance',
+        entityId: String(courseId),
+        metadata: { courseId: String(courseId), date: d.toISOString(), recordCount: results.length, createdCount, updatedCount },
+      });
 
       res.status(200).json({
         success: true,
@@ -144,7 +158,7 @@ export class AttendanceController {
         const cid = String((r.courseId as any)._id);
         if (!grouped[cid]) {
           grouped[cid] = {
-            courseId:   cid,
+            courseId: cid,
             courseName: (r.courseId as any).name,
             courseCode: (r.courseId as any).code,
             total: 0, present: 0, absent: 0, late: 0,

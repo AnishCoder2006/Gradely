@@ -1,7 +1,9 @@
 import {
   createContext, useContext, useEffect,
-  useState, useCallback, ReactNode,
+  useCallback, ReactNode,
 } from 'react';
+import { useAppDispatch, useAppSelector } from '../store';
+import { clearCredentials, setCredentials, setLoading } from '../store/authSlice';
 
 export type UserRole = 'admin' | 'teacher' | 'student';
 
@@ -9,7 +11,13 @@ export interface AuthUser {
   id: string;
   name: string;
   email: string;
+  mfaEnabled?: boolean;
   role: UserRole;
+}
+
+export interface LoginResponse {
+  mfaRequired?: boolean;
+  email?: string;
 }
 
 interface AuthContextType {
@@ -17,7 +25,8 @@ interface AuthContextType {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<LoginResponse>;
+  verifyMfa: (email: string, code: string) => Promise<void>;
   register: (name: string, email: string, password: string, role: UserRole) => Promise<void>;
   logout: () => void;
 }
@@ -27,44 +36,49 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const API = '/api/auth';
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser]       = useState<AuthUser | null>(null);
-  const [token, setToken]     = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const dispatch = useAppDispatch();
+  const user = useAppSelector((state) => state.auth.user);
+  const token = useAppSelector((state) => state.auth.token);
+  const isLoading = useAppSelector((state) => state.auth.isLoading);
 
-  // Rehydrate from localStorage on mount
   useEffect(() => {
-    try {
-      const savedToken = localStorage.getItem('auth_token');
-      const savedUser  = localStorage.getItem('auth_user');
-      if (savedToken && savedUser) {
-        setToken(savedToken);
-        setUser(JSON.parse(savedUser));
-      }
-    } catch {
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('auth_user');
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+    dispatch(setLoading(false));
+  }, [dispatch]);
 
-  const persist = (token: string, user: AuthUser) => {
-    localStorage.setItem('auth_token', token);
-    localStorage.setItem('auth_user', JSON.stringify(user));
-    setToken(token);
-    setUser(user);
-  };
+  const persist = useCallback((tokenValue: string, userValue: AuthUser) => {
+    dispatch(setCredentials({ token: tokenValue, user: userValue }));
+  }, [dispatch]);
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string): Promise<LoginResponse> => {
     const res = await fetch(`${API}/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     });
+
     const json = await res.json();
     if (!res.ok) throw new Error(json.message || 'Login failed');
+
+    if (json.mfaRequired) {
+      return { mfaRequired: true, email: json.data.email };
+    }
+
     persist(json.data.token, json.data.user);
-  }, []);
+    return { mfaRequired: false };
+  }, [persist]);
+
+  const verifyMfa = useCallback(async (email: string, code: string) => {
+    const res = await fetch(`${API}/mfa/verify-login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, code }),
+    });
+
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.message || 'MFA verification failed');
+
+    persist(json.data.token, json.data.user);
+  }, [persist]);
 
   const register = useCallback(async (
     name: string, email: string,
@@ -78,21 +92,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const json = await res.json();
     if (!res.ok) throw new Error(json.message || 'Registration failed');
     persist(json.data.token, json.data.user);
-  }, []);
+  }, [persist]);
 
   const logout = useCallback(() => {
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('auth_user');
-    setToken(null);
-    setUser(null);
-  }, []);
+    dispatch(clearCredentials());
+  }, [dispatch]);
 
   return (
     <AuthContext.Provider value={{
-      user, token,
+      user,
+      token,
       isAuthenticated: !!user,
       isLoading,
-      login, register, logout,
+      login,
+      verifyMfa,
+      register,
+      logout,
     }}>
       {children}
     </AuthContext.Provider>

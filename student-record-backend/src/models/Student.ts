@@ -23,12 +23,12 @@ const StudentSchema = new Schema<IStudent>(
       ref: 'User',
       sparse: true,
     },
-    name:           { type: String, required: true, trim: true },
-    email:          { type: String, required: true, unique: true, lowercase: true, trim: true },
-    phone:          { type: String, required: true },
-    dateOfBirth:    { type: Date, required: true },
-    gender:         { type: String, enum: ['male', 'female', 'other'], required: true },
-    address:        { type: String, required: true },
+    name: { type: String, required: true, trim: true },
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    phone: { type: String, required: true },
+    dateOfBirth: { type: Date, required: true },
+    gender: { type: String, enum: ['male', 'female', 'other'], required: true },
+    address: { type: String, required: true },
     enrollmentDate: { type: Date, default: Date.now },
     status: {
       type: String,
@@ -36,7 +36,7 @@ const StudentSchema = new Schema<IStudent>(
       default: 'pending', // ✅ was 'active' — now requires admin approval
     },
     courseIds: [{ type: String }],
-    gpa:       { type: Number, min: 0, max: 4.0 },
+    gpa: { type: Number, min: 0, max: 4.0 },
   },
   {
     timestamps: true,
@@ -45,6 +45,5 @@ const StudentSchema = new Schema<IStudent>(
 );
 
 StudentSchema.index({ name: 1, email: 1 });
-StudentSchema.index({ userId: 1 });
 
 export default mongoose.model<IStudent>('Student', StudentSchema);

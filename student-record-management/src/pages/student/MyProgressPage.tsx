@@ -1,62 +1,44 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { studentService } from '../../services/studentService';
-import { gradeService } from '../../services/gradeService';
-import { courseService } from '../../services/courseService';
-import { attendanceService } from '../../services/attendanceService';
-import { Student } from '../../types/student.types';
-import { Course } from '../../types/course.types';
-import { GradeRecord } from '../../types/grade.types';
+import {
+  useGetStudentsQuery,
+  useGetGradesQuery,
+  useGetCoursesQuery,
+  useGetAttendanceSummaryQuery,
+} from '../../store';
 import { AlertTriangle, Flame, ArrowUpRight } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ComposedChart, Bar, Line } from 'recharts';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  ComposedChart,
+  Bar,
+  Line,
+} from 'recharts';
 
 const MyProgressPage = () => {
   const { user } = useAuth();
-  const [student, setStudent] = useState<Student | null>(null);
-  const [grades, setGrades] = useState<GradeRecord[]>([]);
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [attendance, setAttendance] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: studentsData, isLoading: loadingStudent } = useGetStudentsQuery({ email: user?.email });
+  const student = studentsData?.data?.[0] ?? null;
+
+  const { data: gradesData, isLoading: loadingGrades, error: e1 } = useGetGradesQuery();
+  const { data: coursesData, isLoading: loadingCourses, error: e2 } = useGetCoursesQuery();
+  const { data: attendanceData, isLoading: loadingAttendance, error: e3 } = useGetAttendanceSummaryQuery(student?._id, { skip: !student?._id });
+
+  const allGrades = Array.isArray(gradesData) ? gradesData : [];
+  const courses = Array.isArray(coursesData) ? coursesData : [];
+  const attendance = Array.isArray(attendanceData) ? attendanceData : [];
+  const grades = student ? allGrades.filter((g) => g.studentId === student._id) : [];
+
+  const loading = loadingStudent || loadingGrades || loadingCourses || loadingAttendance;
+  const error = (e1 || e2 || e3) ? 'Failed to load progress details.' : null;
 
   // Target GPA Planner State
   const [targetGpa, setTargetGpa] = useState(3.8);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!user?.email) return;
-      try {
-        setLoading(true);
-        // 1. Get student record
-        const data = await studentService.getAll({ email: user.email });
-        const studentRecord = data[0] ?? null;
-        if (!studentRecord) {
-          setStudent(null);
-          setLoading(false);
-          return;
-        }
-        setStudent(studentRecord);
-
-        // 2. Fetch grades, courses, and attendance summary
-        const [allGrades, allCourses, attendanceSummary] = await Promise.all([
-          gradeService.getAll(),
-          courseService.getAll(),
-          attendanceService.getSummary()
-        ]);
-
-        const studentGrades = allGrades.filter(g => g.studentId === studentRecord._id);
-        setGrades(studentGrades);
-        setCourses(allCourses);
-        setAttendance(attendanceSummary);
-      } catch (err) {
-        console.error(err);
-        setError('Failed to load progress details.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, [user]);
 
   if (loading) {
     return (
@@ -92,12 +74,12 @@ const MyProgressPage = () => {
   // Calculate stats
   const totalCourses = grades.length;
   const currentGpa = student.gpa || 3.0;
-  
+
   // Calculate completed credits vs total program credits
   let completedCredits = 0;
-  grades.forEach(g => {
+  grades.forEach((g) => {
     if (g.grade !== 'F') {
-      const course = courses.find(c => c._id === g.courseId);
+      const course = courses.find((c) => c._id === g.courseId);
       completedCredits += course?.credits || 3;
     }
   });
@@ -106,13 +88,13 @@ const MyProgressPage = () => {
   const creditProgressPercent = Math.min(Math.round((completedCredits / totalRequiredCredits) * 100), 100);
 
   // Check for attendance risks
-  const lowAttendanceCourses = attendance.filter(a => a.percentage < 75);
+  const lowAttendanceCourses = attendance.filter((a) => a.percentage < 75);
 
   // Determine Academic Standing
   let standing = 'Satisfactory';
   let standingColor = '#3b82f6';
   if (currentGpa >= 3.6) {
-    standing = 'Excellent (Dean\'s List)';
+    standing = "Excellent (Dean's List)";
     standingColor = '#22c55e';
   } else if (currentGpa >= 3.0) {
     standing = 'Good Standing';
@@ -123,26 +105,28 @@ const MyProgressPage = () => {
   }
 
   // Combined data for analysis (Scores vs Attendance)
-  const analysisData = attendance.map(a => {
-    const gradeRec = grades.find(g => g.courseId === a.courseId);
+  const analysisData = attendance.map((a) => {
+    const gradeRec = grades.find((g) => g.courseId === a.courseId);
     return {
       name: a.courseCode,
       courseName: a.courseName,
       'Attendance %': a.percentage,
-      'Score': gradeRec ? gradeRec.score : 0,
+      Score: gradeRec ? gradeRec.score : 0,
     };
   });
 
   // Score progression data (sorted chronologically)
-  const timelineData = grades.map((g, i) => {
-    const course = courses.find(c => c._id === g.courseId);
-    return {
-      index: i + 1,
-      name: course?.code || `C${i + 1}`,
-      score: g.score,
-      semester: g.semester
-    };
-  }).reverse();
+  const timelineData = grades
+    .map((g, i) => {
+      const course = courses.find((c) => c._id === g.courseId);
+      return {
+        index: i + 1,
+        name: course?.code || `C${i + 1}`,
+        score: g.score,
+        semester: g.semester,
+      };
+    })
+    .reverse();
 
   // Target GPA Planner math
   const estimatedRemainingCourses = Math.max(12 - totalCourses, 1);
@@ -160,7 +144,7 @@ const MyProgressPage = () => {
   };
 
   return (
-    <div className="page-section">
+    <div className="page-section" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {/* Header */}
       <div className="flex-between animate-fade-in">
         <div>
@@ -170,17 +154,15 @@ const MyProgressPage = () => {
       </div>
 
       {error && (
-        <div className="alert-error animate-fade-in" style={{ marginBottom: 16 }}>
+        <div className="alert-error animate-fade-in" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
           <AlertTriangle size={15} style={{ marginTop: 2 }} />
           <span>{error}</span>
         </div>
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 24 }} className="lg:grid-cols-[1fr_340px]">
-        
         {/* Left column: Charts & Graphs */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          
           {/* Timeline Score Trend Chart */}
           <div className="card animate-fade-up" style={{ padding: '24px 22px' }}>
             <div style={{ marginBottom: 16 }}>
@@ -198,8 +180,8 @@ const MyProgressPage = () => {
                   <AreaChart data={timelineData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.25}/>
-                        <stop offset="95%" stopColor="var(--accent)" stopOpacity={0.0}/>
+                        <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="var(--accent)" stopOpacity={0.0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
@@ -210,14 +192,16 @@ const MyProgressPage = () => {
                         if (active && payload && payload.length) {
                           const data = payload[0].payload;
                           return (
-                            <div style={{
-                              backgroundColor: 'var(--bg-card)',
-                              border: '1px solid var(--border-strong)',
-                              padding: '8px 12px',
-                              borderRadius: 8,
-                              boxShadow: 'var(--shadow-dropdown)',
-                              fontSize: 12
-                            }}>
+                            <div
+                              style={{
+                                backgroundColor: 'var(--bg-card)',
+                                border: '1px solid var(--border-strong)',
+                                padding: '8px 12px',
+                                borderRadius: 8,
+                                boxShadow: 'var(--shadow-dropdown)',
+                                fontSize: 12,
+                              }}
+                            >
                               <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: 10 }}>{data.semester}</p>
                               <p style={{ margin: '3px 0 0', fontWeight: 600 }}>{data.name}</p>
                               <p style={{ margin: '4px 0 0', color: 'var(--accent-hover)', fontWeight: 600 }}>
@@ -259,14 +243,16 @@ const MyProgressPage = () => {
                         if (active && payload && payload.length) {
                           const data = payload[0].payload;
                           return (
-                            <div style={{
-                              backgroundColor: 'var(--bg-card)',
-                              border: '1px solid var(--border-strong)',
-                              padding: '8px 12px',
-                              borderRadius: 8,
-                              boxShadow: 'var(--shadow-dropdown)',
-                              fontSize: 12
-                            }}>
+                            <div
+                              style={{
+                                backgroundColor: 'var(--bg-card)',
+                                border: '1px solid var(--border-strong)',
+                                padding: '8px 12px',
+                                borderRadius: 8,
+                                boxShadow: 'var(--shadow-dropdown)',
+                                fontSize: 12,
+                              }}
+                            >
                               <p style={{ margin: 0, fontWeight: 600 }}>{data.courseName}</p>
                               <p style={{ margin: '4px 0 0', color: '#3b82f6' }}>
                                 Attendance: <span style={{ fontWeight: 600 }}>{data['Attendance %']}%</span>
@@ -297,18 +283,15 @@ const MyProgressPage = () => {
               </div>
             </div>
           </div>
-
         </div>
 
         {/* Right column: Planner & Standing */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }} className="animate-fade-up">
-          
           {/* Status card */}
           <div className="card" style={{ padding: '24px 22px' }}>
             <h3 className="text-heading" style={{ marginBottom: 16 }}>Academic Overview</h3>
-            
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              
               <div>
                 <p className="input-label" style={{ margin: 0, fontSize: 10, textTransform: 'uppercase' }}>Academic Standing</p>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
@@ -321,37 +304,38 @@ const MyProgressPage = () => {
               <div>
                 <div className="flex-between" style={{ marginBottom: 6 }}>
                   <p className="input-label" style={{ margin: 0, fontSize: 10, textTransform: 'uppercase' }}>Syllabus Credit Progress</p>
-                  <span style={{ fontSize: 12, fontWeight: 500 }}>{completedCredits} / {totalRequiredCredits} Cr</span>
+                  <span style={{ fontSize: 12, fontWeight: 500, fontFamily: 'IBM Plex Mono, monospace' }}>{completedCredits} / {totalRequiredCredits} Cr</span>
                 </div>
                 <div style={{ height: 6, borderRadius: 99, backgroundColor: 'var(--border)', overflow: 'hidden' }}>
                   <div style={{ height: '100%', width: `${creditProgressPercent}%`, borderRadius: 99, backgroundColor: 'var(--accent)', transition: 'width 0.6s ease' }} />
                 </div>
-                <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, margin: '4px 0 0' }}>
+                <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '4px 0 0' }}>
                   {creditProgressPercent}% of total required year credits completed.
                 </p>
               </div>
 
               {/* Attendance warnings */}
               {lowAttendanceCourses.length > 0 && (
-                <div style={{
-                  padding: '12px 14px',
-                  backgroundColor: 'var(--error-bg)',
-                  border: '1px solid #fecaca',
-                  borderRadius: 'var(--radius-sm)',
-                  display: 'flex',
-                  gap: 8,
-                  marginTop: 4,
-                }}>
-                  <AlertTriangle size={16} style={{ color: 'var(--error)', flexShrink: 0, marginTop: 1 }} />
+                <div
+                  style={{
+                    padding: '12px 14px',
+                    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                    border: '1px solid rgba(239, 68, 68, 0.25)',
+                    borderRadius: 'var(--radius-sm)',
+                    display: 'flex',
+                    gap: 8,
+                    marginTop: 4,
+                  }}
+                >
+                  <AlertTriangle size={16} style={{ color: '#ef4444', flexShrink: 0, marginTop: 1 }} />
                   <div>
-                    <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--error)', margin: 0 }}>Attendance Risk Alert</p>
+                    <p style={{ fontSize: 12, fontWeight: 600, color: '#ef4444', margin: 0 }}>Attendance Risk Alert</p>
                     <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '2px 0 0' }}>
                       You are below 75% in <span style={{ fontWeight: 600 }}>{lowAttendanceCourses.length}</span> course(s). You may face attendance shortages.
                     </p>
                   </div>
                 </div>
               )}
-
             </div>
           </div>
 
@@ -359,9 +343,9 @@ const MyProgressPage = () => {
           <div className="card" style={{ padding: '24px 22px', animationDelay: '80ms' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
               <Flame size={16} style={{ color: 'var(--accent)' }} />
-              <h3 className="text-heading" style={{ margin: 0 }}>GPA Goal Planner</h3>
+              <h3 className="text-heading" style={{ margin: 0 }}>Target GPA Planner</h3>
             </div>
-            
+
             <p className="text-caption" style={{ marginBottom: 16 }}>
               Adjust the slider to see what average GPA you need in your remaining courses to hit your goal.
             </p>
@@ -370,7 +354,7 @@ const MyProgressPage = () => {
               <div>
                 <div className="flex-between">
                   <span className="input-label" style={{ fontSize: 11 }}>Target Cumulative GPA</span>
-                  <span style={{ fontFamily: 'Geist Mono, monospace', fontSize: 16, fontWeight: 600, color: 'var(--accent)' }}>{targetGpa.toFixed(2)}</span>
+                  <span style={{ fontFamily: 'IBM Plex Mono, monospace', fontSize: 16, fontWeight: 600, color: 'var(--accent)' }}>{targetGpa.toFixed(2)}</span>
                 </div>
                 <input
                   type="range"
@@ -378,44 +362,46 @@ const MyProgressPage = () => {
                   max="4.0"
                   step="0.05"
                   value={targetGpa}
-                  onChange={e => setTargetGpa(parseFloat(e.target.value))}
+                  onChange={(e) => setTargetGpa(parseFloat(e.target.value))}
                   style={{
                     width: '100%',
                     accentColor: 'var(--accent)',
                     marginTop: 8,
-                    cursor: 'pointer'
+                    cursor: 'pointer',
                   }}
                 />
               </div>
 
-              <div style={{
-                padding: '14px',
-                backgroundColor: 'var(--bg-base)',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border)',
-                textAlign: 'center'
-              }}>
-                <span className="stat-card-label" style={{ fontSize: 8.5 }}>Needed Average GPA</span>
-                <p className="stat-card-value" style={{
-                  fontSize: 28,
-                  marginTop: 4,
-                  color: neededAverageGpa > 4.0 ? 'var(--error)' : neededAverageGpa >= 3.5 ? 'var(--success)' : 'var(--text-primary)'
-                }}>
+              <div
+                style={{
+                  padding: '14px',
+                  backgroundColor: 'var(--bg-base)',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--border)',
+                  textAlign: 'center',
+                }}
+              >
+                <span className="stat-card-label" style={{ fontSize: 8.5 }}>NEEDED AVERAGE GPA</span>
+                <p
+                  className="stat-card-value"
+                  style={{
+                    fontSize: 28,
+                    marginTop: 4,
+                    fontFamily: 'IBM Plex Mono, monospace',
+                    color: neededAverageGpa > 4.0 ? '#ef4444' : neededAverageGpa <= 0 ? '#22c55e' : 'var(--text-primary)',
+                  }}
+                >
                   {neededAverageGpa > 4.0 ? 'Out of Reach' : neededAverageGpa <= 0 ? 'Goal Met' : neededAverageGpa.toFixed(2)}
                 </p>
               </div>
 
               <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 12, color: 'var(--text-secondary)' }}>
                 <ArrowUpRight size={14} style={{ flexShrink: 0, marginTop: 2, color: 'var(--text-muted)' }} />
-                <span>
-                  {getNeededGradeMessage(neededAverageGpa)}
-                </span>
+                <span>{getNeededGradeMessage(neededAverageGpa)}</span>
               </div>
             </div>
           </div>
-
         </div>
-
       </div>
     </div>
   );

@@ -2,13 +2,21 @@ import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { useToastContext } from '../context/ToastContext';
-import { doubtService, Doubt, DoubtMessage } from '../services/doubtService';
-import { MessageCircle, Send, Plus, CheckCircle, Clock, X } from 'lucide-react';
+import type { Doubt, DoubtMessage } from '../services/doubtService';
+import {
+  baseApi,
+  useAppDispatch,
+  useCreateDoubtMutation,
+  useGetDoubtsQuery,
+  useReplyToDoubtMutation,
+  useCloseDoubtMutation,
+} from '../store';
+import { MessageCircle, Send, Plus, CheckCircle, X } from 'lucide-react';
 
 const STATUS_CONFIG: Record<string, { color: string; label: string }> = {
-  open:     { color: '#eab308', label: 'Open' },
-  answered: { color: '#3b82f6', label: 'Answered' },
-  closed:   { color: '#22c55e', label: 'Closed' },
+  open: { color: 'var(--status-warning)', label: 'Open' },
+  answered: { color: 'var(--accent-primary)', label: 'Answered' },
+  closed: { color: 'var(--status-success)', label: 'Closed' },
 };
 
 const timeAgo = (dateStr: string) => {
@@ -26,33 +34,29 @@ const DoubtsPage = () => {
   const { socket } = useSocket();
   const { success, error: toastError } = useToastContext();
 
-  const [doubts, setDoubts]         = useState<Doubt[]>([]);
-  const [loading, setLoading]       = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showNewForm, setShowNewForm] = useState(false);
-  const [newSubject, setNewSubject]   = useState('');
-  const [newText, setNewText]         = useState('');
-  const [replyText, setReplyText]     = useState('');
-  const [sending, setSending]         = useState(false);
-  const [creating, setCreating]       = useState(false);
+  const [newSubject, setNewSubject] = useState('');
+  const [newText, setNewText] = useState('');
+  const [replyText, setReplyText] = useState('');
+  const [sending, setSending] = useState(false);
+  const [creating, setCreating] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const dispatch = useAppDispatch();
+  const { data: doubts = [], isLoading: loading, error } = useGetDoubtsQuery();
+  const [createDoubt] = useCreateDoubtMutation();
+  const [replyToDoubt] = useReplyToDoubtMutation();
+  const [closeDoubt] = useCloseDoubtMutation();
 
   const isStudent = user?.role === 'student';
 
-  const fetchDoubts = async () => {
-    try {
-      setLoading(true);
-      const data = await doubtService.getAll();
-      setDoubts(data);
-      if (!selectedId && data.length > 0) setSelectedId(data[0]._id);
-    } catch {
-      toastError('Failed to load doubts.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    if (error) toastError('Failed to load doubts.');
+  }, [error, toastError]);
 
-  useEffect(() => { fetchDoubts(); }, []);
+  useEffect(() => {
+    if (!selectedId && doubts.length > 0) setSelectedId(doubts[0]._id);
+  }, [doubts, selectedId]);
 
   const selectedDoubt = doubts.find(d => d._id === selectedId) ?? null;
 
@@ -68,7 +72,9 @@ const DoubtsPage = () => {
     if (!socket) return;
     const handleNewDoubt = (doubt: Doubt) => {
       if (isStudent) return; // students only see their own, already in initial fetch
-      setDoubts(prev => [doubt, ...prev]);
+      dispatch(baseApi.util.updateQueryData('getDoubts', undefined, current => {
+        if (!current.some(item => item._id === doubt._id)) current.unshift(doubt);
+      }));
     };
     socket.on('doubt:new', handleNewDoubt);
     return () => { socket.off('doubt:new', handleNewDoubt); };
@@ -81,16 +87,14 @@ const DoubtsPage = () => {
       doubtId: string; message: DoubtMessage; status: string;
       teacherId?: string; teacherName?: string;
     }) => {
-      setDoubts(prev => prev.map(d => {
-        if (d._id !== payload.doubtId) return d;
-        return {
-          ...d,
-          messages: [...d.messages, payload.message],
-          status: payload.status as Doubt['status'],
-          teacherId: payload.teacherId ?? d.teacherId,
-          teacherName: payload.teacherName ?? d.teacherName,
-          lastMessageAt: payload.message.createdAt,
-        };
+      dispatch(baseApi.util.updateQueryData('getDoubts', undefined, current => {
+        const doubt = current.find(item => item._id === payload.doubtId);
+        if (!doubt || doubt.messages.some(message => message.createdAt === payload.message.createdAt && message.text === payload.message.text)) return;
+        doubt.messages.push(payload.message);
+        doubt.status = payload.status as Doubt['status'];
+        doubt.teacherId = payload.teacherId ?? doubt.teacherId;
+        doubt.teacherName = payload.teacherName ?? doubt.teacherName;
+        doubt.lastMessageAt = payload.message.createdAt;
       }));
     };
     socket.on('doubt:message', handleMessage);
@@ -107,8 +111,10 @@ const DoubtsPage = () => {
     if (!newSubject.trim() || !newText.trim()) return;
     setCreating(true);
     try {
-      const doubt = await doubtService.create({ subject: newSubject, text: newText });
-      setDoubts(prev => [doubt, ...prev]);
+      const doubt = await createDoubt({ subject: newSubject, text: newText }).unwrap();
+      dispatch(baseApi.util.updateQueryData('getDoubts', undefined, current => {
+        if (!current.some(item => item._id === doubt._id)) current.unshift(doubt);
+      }));
       setSelectedId(doubt._id);
       setNewSubject(''); setNewText('');
       setShowNewForm(false);
@@ -127,7 +133,7 @@ const DoubtsPage = () => {
     const text = replyText;
     setReplyText('');
     try {
-      await doubtService.reply(selectedDoubt._id, text);
+      await replyToDoubt({ id: selectedDoubt._id, text }).unwrap();
       // Message arrives via socket event — no need to manually append
     } catch (err: any) {
       toastError(err.message || 'Failed to send message.');
@@ -139,8 +145,11 @@ const DoubtsPage = () => {
 
   const handleClose = async (id: string) => {
     try {
-      await doubtService.close(id);
-      setDoubts(prev => prev.map(d => d._id === id ? { ...d, status: 'closed' } : d));
+      await closeDoubt(id).unwrap();
+      dispatch(baseApi.util.updateQueryData('getDoubts', undefined, current => {
+        const doubt = current.find(item => item._id === id);
+        if (doubt) doubt.status = 'closed';
+      }));
       success('Doubt marked as closed.');
     } catch {
       toastError('Failed to close doubt.');

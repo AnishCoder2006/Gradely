@@ -1,14 +1,14 @@
 import {
-  createContext, useContext, ReactNode,
+  createContext, useContext, ReactNode, useMemo,
 } from 'react';
 import { useToast, Toast, ToastType } from './hooks/useToast';
 import { CheckCircle, XCircle, AlertTriangle, Info, X } from 'lucide-react';
 
 interface ToastContextType {
   success: (msg: string) => void;
-  error:   (msg: string) => void;
+  error: (msg: string) => void;
   warning: (msg: string) => void;
-  info:    (msg: string) => void;
+  info: (msg: string) => void;
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
@@ -19,14 +19,14 @@ const TOAST_CONFIG: Record<ToastType, {
   border: string;
   color: string;
 }> = {
-  success: { icon: CheckCircle,    bg: 'var(--success-bg)', border: '#86efac',  color: 'var(--success)' },
-  error:   { icon: XCircle,        bg: 'var(--error-bg)',   border: '#fca5a5',  color: 'var(--error)'   },
-  warning: { icon: AlertTriangle,  bg: 'var(--warning-bg)', border: '#fcd34d',  color: 'var(--warning)' },
-  info:    { icon: Info,           bg: 'rgba(59,130,246,0.08)', border: '#93c5fd', color: '#3b82f6'     },
+  success: { icon: CheckCircle, bg: 'var(--success-bg)', border: '#86efac', color: 'var(--success)' },
+  error: { icon: XCircle, bg: 'var(--error-bg)', border: '#fca5a5', color: 'var(--error)' },
+  warning: { icon: AlertTriangle, bg: 'var(--warning-bg)', border: '#fcd34d', color: 'var(--warning)' },
+  info: { icon: Info, bg: 'rgba(59,130,246,0.08)', border: '#93c5fd', color: '#3b82f6' },
 };
 
 const ToastItem = ({ toast, onRemove }: { toast: Toast; onRemove: () => void }) => {
-  const cfg  = TOAST_CONFIG[toast.type];
+  const cfg = TOAST_CONFIG[toast.type];
   const Icon = cfg.icon;
 
   return (
@@ -39,7 +39,7 @@ const ToastItem = ({ toast, onRemove }: { toast: Toast; onRemove: () => void }) 
       boxShadow: 'var(--shadow-raised)',
       minWidth: 280, maxWidth: 380,
       animation: 'slide-in-right 0.22s cubic-bezier(0.16,1,0.3,1) both',
-      fontFamily: 'Geist, sans-serif',
+      fontFamily: 'Instrument Sans, sans-serif',
     }}>
       <Icon size={15} style={{ color: cfg.color, flexShrink: 0, marginTop: 1 }} />
       <p style={{ fontSize: 13, color: 'var(--text-primary)', margin: 0, flex: 1, lineHeight: 1.4 }}>
@@ -61,9 +61,10 @@ const ToastItem = ({ toast, onRemove }: { toast: Toast; onRemove: () => void }) 
 
 export const ToastProvider = ({ children }: { children: ReactNode }) => {
   const { toasts, removeToast, success, error, warning, info } = useToast();
+  const actions = useMemo(() => ({ success, error, warning, info }), [success, error, warning, info]);
 
   return (
-    <ToastContext.Provider value={{ success, error, warning, info }}>
+    <ToastContext.Provider value={actions}>
       {children}
 
       {/* Toast container */}

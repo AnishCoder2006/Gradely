@@ -1,8 +1,13 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import { Server as HTTPServer } from 'http';
 import jwt from 'jsonwebtoken';
+import { createAdapter } from '@socket.io/redis-adapter';
+import { createClient } from 'redis';
+import { isRedisReady } from './services/redis.service';
+import logger from './config/logger';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
+const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 
 interface AuthedSocket extends Socket {
   user?: { id: string; role: string };
@@ -29,10 +34,23 @@ function isRateLimited(userId: string): boolean {
 
 let io: SocketIOServer;
 
-export function initSocket(server: HTTPServer) {
+export async function initSocket(server: HTTPServer) {
   io = new SocketIOServer(server, {
-    cors: { origin: 'http://localhost:5173', credentials: true },
+    cors: { origin: process.env.CLIENT_URL || 'http://localhost:5173', credentials: true },
   });
+
+  // Part 2: Attach Socket.io Redis Adapter if Redis is active
+  if (isRedisReady()) {
+    try {
+      const pubClient = createClient({ url: REDIS_URL });
+      const subClient = pubClient.duplicate();
+      await Promise.all([pubClient.connect(), subClient.connect()]);
+      io.adapter(createAdapter(pubClient, subClient));
+      logger.info({ feature: 'socket.io', adapter: 'redis' }, 'socket_redis_adapter_initialized');
+    } catch (err: any) {
+      logger.warn({ err, feature: 'socket.io', adapter: 'redis' }, 'socket_redis_adapter_failed');
+    }
+  }
 
   io.use((socket: AuthedSocket, next) => {
     try {
@@ -53,6 +71,7 @@ export function initSocket(server: HTTPServer) {
     onlineUsers.get(userId)!.add(socket.id);
 
     socket.join('announcements');
+    socket.join(`user:${userId}`);
 
     // Tell everyone this user just came online
     io.emit('presence:update', { userId, online: true });

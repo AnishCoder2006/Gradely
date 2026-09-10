@@ -1,9 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import {
   IndianRupee, CheckCircle, Clock, CreditCard,
   AlertTriangle, Loader2, XCircle,
 } from 'lucide-react';
-import { feeService, paymentService, Fee, Payment } from '../../services/paymentService';
+import { Fee } from '../../services/paymentService';
+import {
+  useCreatePaymentOrderMutation,
+  useGetFeesQuery,
+  useGetMyPaymentsQuery,
+  useVerifyPaymentMutation,
+} from '../../store';
 
 declare global { interface Window { Razorpay: any; } }
 
@@ -12,39 +18,30 @@ const loadRazorpay = (): Promise<boolean> =>
     if (window.Razorpay) { resolve(true); return; }
     const s = document.createElement('script');
     s.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    s.onload  = () => resolve(true);
+    s.onload = () => resolve(true);
     s.onerror = () => resolve(false);
     document.body.appendChild(s);
   });
 
-const fmtINR  = (n: number) => `₹${n.toLocaleString('en-IN')}`;
+const fmtINR = (n: number) => `₹${n.toLocaleString('en-IN')}`;
 const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 
 const STATUS_BADGE: Record<string, { label: string; cls: string; icon: React.ElementType }> = {
-  paid:    { label: 'Paid',    cls: 'badge-green',  icon: CheckCircle },
+  paid: { label: 'Paid', cls: 'badge-green', icon: CheckCircle },
   created: { label: 'Pending', cls: 'badge-yellow', icon: Clock },
-  failed:  { label: 'Failed',  cls: 'badge-red',    icon: XCircle },
+  failed: { label: 'Failed', cls: 'badge-red', icon: XCircle },
 };
 
 export default function PaymentPage() {
-  const [fees, setFees]         = useState<Fee[]>([]);
-  const [myPayments, setMyPayments] = useState<Payment[]>([]);
-  const [loading, setLoading]   = useState(true);
   const [payingId, setPayingId] = useState<string | null>(null);
-  const [error, setError]       = useState('');
-  const [success, setSuccess]   = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [f, p] = await Promise.all([feeService.getAll(), paymentService.getMyPayments()]);
-      setFees(f);
-      setMyPayments(p);
-    } catch { /* silent */ }
-    finally { setLoading(false); }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
+  const { data: fees = [], isLoading: feesLoading } = useGetFeesQuery();
+  const { data: myPayments = [], isLoading: paymentsLoading } = useGetMyPaymentsQuery();
+  const [createPaymentOrder] = useCreatePaymentOrderMutation();
+  const [verifyPayment] = useVerifyPaymentMutation();
+  const loading = feesLoading || paymentsLoading;
 
   // Check if student already paid a specific fee
   const isPaid = (feeId: string) =>
@@ -60,26 +57,25 @@ export default function PaymentPage() {
       const loaded = await loadRazorpay();
       if (!loaded) { setError('Could not load Razorpay. Check your connection.'); return; }
 
-      const order = await paymentService.createOrder(fee._id);
+      const order = await createPaymentOrder(fee._id).unwrap();
 
       const rzp = new window.Razorpay({
-        key:         order.keyId,
-        amount:      order.amount,
-        currency:    order.currency,
-        name:        'Student Record System',
+        key: order.keyId,
+        amount: order.amount,
+        currency: order.currency,
+        name: 'Student Record System',
         description: fee.title,
-        order_id:    order.orderId,
-        prefill:     { name: order.studentName, email: order.studentEmail },
-        theme:       { color: '#d97706' },
+        order_id: order.orderId,
+        prefill: { name: order.studentName, email: order.studentEmail },
+        theme: { color: '#d97706' },
         handler: async (resp: any) => {
           try {
-            await paymentService.verifyPayment({
-              razorpay_order_id:   resp.razorpay_order_id,
+            await verifyPayment({
+              razorpay_order_id: resp.razorpay_order_id,
               razorpay_payment_id: resp.razorpay_payment_id,
-              razorpay_signature:  resp.razorpay_signature,
-            });
+              razorpay_signature: resp.razorpay_signature,
+            }).unwrap();
             setSuccess(`Payment for "${fee.title}" successful!`);
-            load();
           } catch { setError('Payment verification failed. Contact support.'); }
         },
         modal: { ondismiss: () => setPayingId(null) },
@@ -108,7 +104,7 @@ export default function PaymentPage() {
         </div>
       )}
       {success && (
-        <div style={{ display:'flex', gap:10, padding:'12px 16px', background:'rgba(13,148,136,0.06)', border:'1px solid rgba(13,148,136,0.18)', borderRadius:10, marginBottom:16, fontSize:13, color:'var(--success)', fontFamily:'Plus Jakarta Sans, sans-serif' }}>
+        <div style={{ display: 'flex', gap: 10, padding: '12px 16px', background: 'rgba(13,148,136,0.06)', border: '1px solid rgba(13,148,136,0.18)', borderRadius: 10, marginBottom: 16, fontSize: 13, color: 'var(--success)', fontFamily: 'Instrument Sans, sans-serif' }}>
           <CheckCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} /><span>{success}</span>
         </div>
       )}
@@ -126,8 +122,8 @@ export default function PaymentPage() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {fees.map(fee => {
-            const paid    = isPaid(fee._id);
-            const paying  = payingId === fee._id;
+            const paid = isPaid(fee._id);
+            const paying = payingId === fee._id;
             const dueDate = new Date(fee.dueDate);
             const overdue = !paid && dueDate < new Date();
 
@@ -151,10 +147,10 @@ export default function PaymentPage() {
                       : <IndianRupee size={18} color="var(--accent)" />}
                   </div>
                   <div>
-                    <p style={{ margin: 0, fontWeight: 700, fontSize: 14.5, color: 'var(--text-primary)', fontFamily: 'Outfit, sans-serif' }}>
+                    <p style={{ margin: 0, fontWeight: 700, fontSize: 14.5, color: 'var(--text-primary)', fontFamily: 'Instrument Sans, sans-serif' }}>
                       {fee.title}
                     </p>
-                    <p style={{ margin: '3px 0 0', fontSize: 12.5, color: 'var(--text-muted)', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+                    <p style={{ margin: '3px 0 0', fontSize: 12.5, color: 'var(--text-muted)', fontFamily: 'Instrument Sans, sans-serif' }}>
                       {fee.description} · Due {fmtDate(fee.dueDate)}
                       {overdue && <span style={{ color: 'var(--error)', marginLeft: 6, fontWeight: 600 }}>Overdue</span>}
                     </p>
@@ -162,7 +158,7 @@ export default function PaymentPage() {
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0 }}>
-                  <p style={{ margin: 0, fontFamily: 'Geist Mono, monospace', fontWeight: 700, fontSize: 16, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+                  <p style={{ margin: 0, fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700, fontSize: 16, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
                     {fmtINR(fee.amount)}
                   </p>
                   {paid ? (
@@ -190,7 +186,7 @@ export default function PaymentPage() {
       {/* Transaction History */}
       {myPayments.length > 0 && (
         <div style={{ marginTop: 32 }}>
-          <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12, fontFamily: 'Outfit, sans-serif' }}>
+          <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12, fontFamily: 'Instrument Sans, sans-serif' }}>
             Transaction History
           </p>
           <div className="table-wrapper">
@@ -207,7 +203,7 @@ export default function PaymentPage() {
                   return (
                     <tr key={p._id} className="table-row">
                       <td className="table-cell">{fee?.title ?? '—'}</td>
-                      <td className="table-cell" style={{ fontFamily: 'Geist Mono, monospace', fontWeight: 700 }}>
+                      <td className="table-cell" style={{ fontFamily: 'IBM Plex Mono, monospace', fontWeight: 700 }}>
                         {fmtINR(p.amount / 100)}
                       </td>
                       <td className="table-cell"><span className={`badge ${cfg.cls}`}>{cfg.label}</span></td>

@@ -1,6 +1,4 @@
-import { useEffect, useState } from 'react';
-import { studentService } from '../services/studentService';
-import { courseService } from '../services/courseService';
+import { useGetStudentsQuery, useGetCoursesQuery } from '../store';
 import { StatCard } from '../components/dashboard/StatCard';
 import { Users, BookOpen, Award, TrendingUp } from 'lucide-react';
 import {
@@ -8,13 +6,13 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell,
 } from 'recharts';
 
-const COLORS = ['#d97706', '#6366f1', '#0d9488', '#8b5cf6'];
+const COLORS = ['var(--accent)', 'var(--data-accent)', 'var(--accent-hover)', 'var(--data-accent-subtle)'];
 
 const COURSE_DISTRIBUTION = [
   { name: 'Computer Science', value: 35 },
-  { name: 'Mathematics',      value: 25 },
-  { name: 'Physics',          value: 20 },
-  { name: 'Literature',       value: 20 },
+  { name: 'Mathematics', value: 25 },
+  { name: 'Physics', value: 20 },
+  { name: 'Literature', value: 20 },
 ];
 
 const PERFORMANCE_DATA = [
@@ -27,11 +25,11 @@ const PERFORMANCE_DATA = [
 ];
 
 const RECENT = [
-  { name: 'Arjun Mehta',  action: 'Enrolled in Advanced Calculus',  time: '2m ago',  color: '#3b82f6' },
-  { name: 'Priya Iyer',   action: 'Grade updated — Data Structures', time: '18m ago', color: '#22c55e' },
-  { name: 'Rohan Sharma', action: 'Attendance marked — Physics',     time: '1h ago',  color: '#eab308' },
-  { name: 'Sneha Pillai', action: 'New course registration',         time: '3h ago',  color: '#a855f7' },
-  { name: 'Vikram Nair',  action: 'GPA recalculated — 3.82',        time: '5h ago',  color: '#22c55e' },
+  { name: 'Arjun Mehta', action: 'Enrolled in Advanced Calculus', time: '2m ago', color: 'var(--accent-primary)' },
+  { name: 'Priya Iyer', action: 'Grade updated — Data Structures', time: '18m ago', color: 'var(--status-success)' },
+  { name: 'Rohan Sharma', action: 'Attendance marked — Physics', time: '1h ago', color: 'var(--status-warning)' },
+  { name: 'Sneha Pillai', action: 'New course registration', time: '3h ago', color: '#a855f7' },
+  { name: 'Vikram Nair', action: 'GPA recalculated — 3.82', time: '5h ago', color: 'var(--status-success)' },
 ];
 
 const CustomBarTooltip = ({ active, payload, label }: any) => {
@@ -90,35 +88,18 @@ const StatSkeleton = () => (
 );
 
 const DashboardPage = () => {
-  const [stats, setStats] = useState({
-    totalStudents: 0,
-    totalCourses: 0,
-    activeStudents: 0,
-  });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: studentsData, isLoading: isLoadingStudents, error: studentsError } = useGetStudentsQuery({});
+  const { data: coursesData, isLoading: isLoadingCourses, error: coursesError } = useGetCoursesQuery();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [students, courses] = await Promise.all([
-          studentService.getAll(),
-          courseService.getAll(),
-        ]);
-        setStats({
-          totalStudents: students.length,
-          totalCourses: courses.length,
-          activeStudents: students.filter((s) => s.status === 'active').length,
-        });
-      } catch (err) {
-        console.error(err);
-        setError('Failed to load dashboard data.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
+  const students = studentsData?.data ?? [];
+  const courses = coursesData ?? [];
+
+  const loading = isLoadingStudents || isLoadingCourses;
+  const error = studentsError || coursesError ? 'Failed to load dashboard data.' : null;
+
+  const totalStudents = studentsData?.pagination?.total ?? students.length;
+  const totalCourses = courses.length;
+  const activeStudents = students.filter((s: any) => s.status === 'active').length;
 
   return (
     <div className="page-section">
@@ -142,21 +123,21 @@ const DashboardPage = () => {
           <>
             <StatCard
               title="Total Students"
-              value={stats.totalStudents}
+              value={totalStudents}
               icon={Users}
               color="yellow"
               trend={{ value: 12, label: 'vs last month' }}
             />
             <StatCard
               title="Total Courses"
-              value={stats.totalCourses}
+              value={totalCourses}
               icon={BookOpen}
               color="blue"
               trend={{ value: 4, label: 'vs last month' }}
             />
             <StatCard
               title="Active Students"
-              value={stats.activeStudents}
+              value={activeStudents}
               icon={TrendingUp}
               color="green"
               trend={{ value: -2, label: 'vs last month' }}
@@ -190,15 +171,15 @@ const DashboardPage = () => {
                 dataKey="name"
                 axisLine={false}
                 tickLine={false}
-                tick={{ fontSize: 11, fill: 'var(--text-muted)', fontFamily: 'Geist, sans-serif' }}
+                tick={{ fontSize: 11, fill: 'var(--text-muted)', fontFamily: 'Instrument Sans, sans-serif' }}
               />
               <YAxis
                 axisLine={false}
                 tickLine={false}
-                tick={{ fontSize: 11, fill: 'var(--text-muted)', fontFamily: 'Geist Mono, monospace' }}
+                tick={{ fontSize: 11, fill: 'var(--text-muted)', fontFamily: 'IBM Plex Mono, monospace' }}
               />
               <Tooltip content={<CustomBarTooltip />} cursor={{ fill: 'rgba(217,119,6,0.03)' }} />
-              <Bar dataKey="students" fill="#d97706" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="students" fill="var(--data-accent)" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -289,7 +270,7 @@ const DashboardPage = () => {
                 width: 32, height: 32, borderRadius: '50%',
                 backgroundColor: item.color + '18',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontFamily: 'Geist Mono, monospace',
+                fontFamily: 'IBM Plex Mono, monospace',
                 fontSize: 11, fontWeight: 600,
                 color: item.color, flexShrink: 0,
               }}>

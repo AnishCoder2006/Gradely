@@ -13,7 +13,7 @@ const PendingApprovalPage = () => {
       justifyContent: 'center',
       background: 'linear-gradient(135deg, #fefce8 0%, #f0fdf4 40%, #eff6ff 100%)',
       padding: 24,
-      fontFamily: 'Geist, sans-serif',
+      fontFamily: 'Instrument Sans, sans-serif',
     }}>
       <div style={{
         backgroundColor: 'rgba(255,255,255,0.7)',
@@ -75,10 +75,10 @@ const PendingApprovalPage = () => {
           marginBottom: 24,
         }}>
           {[
-            { label: 'Account created',        done: true },
-            { label: 'Profile setup',          done: false },
+            { label: 'Account created', done: true },
+            { label: 'Profile setup', done: false },
             { label: 'Admin approval pending', done: false },
-            { label: 'Access granted',         done: false },
+            { label: 'Access granted', done: false },
           ].map((step, i) => (
             <div
               key={i}

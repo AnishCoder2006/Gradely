@@ -2,14 +2,14 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import path from 'path';
+import logger from './logger';
 
 // Force load .env from current directory
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const connectDB = async (): Promise<void> => {
   try {
-    console.log("📁 Current directory:", __dirname);
-    console.log("🔍 MONGO_URI loaded:", process.env.MONGO_URI ? "✅ YES" : "❌ NOT FOUND");
+    logger.debug({ directory: __dirname, mongoUriConfigured: Boolean(process.env.MONGO_URI) }, 'database_configuration_loaded');
 
     const mongoURI = process.env.MONGO_URI;
     if (!mongoURI) {
@@ -17,10 +17,9 @@ const connectDB = async (): Promise<void> => {
     }
 
     await mongoose.connect(mongoURI);
-    console.log('✅ MongoDB Connected Successfully!');
+    logger.info('database_connected');
   } catch (error: any) {
-    console.error('❌ MongoDB Connection Failed!');
-    console.error('Error:', error.message);
+    logger.fatal({ err: error }, 'database_connection_failed');
     process.exit(1);
   }
 };

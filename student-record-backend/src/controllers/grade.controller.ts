@@ -1,33 +1,40 @@
 import { Request, Response, NextFunction } from 'express';
 import Grade from '../models/Grade';
-import Course from '../models/Course';
 import Student from '../models/Student';
-import { calculateSGPA, calculateCGPA }  from '../utils/gradeUtils';
+import { calculateSGPA, calculateCGPA } from '../utils/gradeUtils';
+import { AuthRequest } from '../middleware/auth.middleware';
+import { writeAuditLog } from '../services/audit.service';
 
 
 export class GradeController {
 
-  async getAll(req: Request, res: Response, next: NextFunction) {
+  async getAll(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const grades = await Grade.find()
+      const filter: Record<string, unknown> = {};
+      if (req.user?.role === 'student') {
+        const student = await Student.findOne({ userId: req.user.id });
+        if (!student) { res.status(200).json({ success: true, data: [], message: 'Grades fetched successfully' }); return; }
+        filter.studentId = student._id;
+      }
+      const grades = await Grade.find(filter)
         .populate('studentId', 'name email')
         .populate('courseId', 'name code credits')
         .sort({ createdAt: -1 });
 
       const data = grades.map(g => ({
-        _id:         g._id,
-        studentId:   (g.studentId as any)._id ?? g.studentId,
+        _id: g._id,
+        studentId: (g.studentId as any)._id ?? g.studentId,
         studentName: (g.studentId as any).name ?? '',
-        courseId:    (g.courseId as any)._id ?? g.courseId,
-        courseName:  (g.courseId as any).name ?? '',
-        courseCode:  (g.courseId as any).code ?? '',
-        examType:    g.examType,
-        grade:       g.grade,
-        score:       g.score,
-        semester:    g.semester,
-        remarks:     g.remarks,
-        createdAt:   g.createdAt,
-        updatedAt:   g.updatedAt,
+        courseId: (g.courseId as any)._id ?? g.courseId,
+        courseName: (g.courseId as any).name ?? '',
+        courseCode: (g.courseId as any).code ?? '',
+        examType: g.examType,
+        grade: g.grade,
+        score: g.score,
+        semester: g.semester,
+        remarks: g.remarks,
+        createdAt: g.createdAt,
+        updatedAt: g.updatedAt,
       }));
 
       res.status(200).json({ success: true, data, message: 'Grades fetched successfully' });
@@ -44,7 +51,7 @@ export class GradeController {
     } catch (error) { next(error); }
   }
 
-  async create(req: Request, res: Response, next: NextFunction) {
+  async create(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { studentId, courseId, examType, grade, score, semester, remarks } = req.body;
 
@@ -70,6 +77,15 @@ export class GradeController {
         await recalculateStudentGPA(String(studentId));
       }
 
+      await writeAuditLog({
+        actorId: req.user?.id,
+        actorRole: req.user?.role,
+        action: 'grade.created',
+        entity: 'grade',
+        entityId: String(newGrade._id),
+        metadata: { studentId: String(studentId), courseId: String(courseId), examType, grade, score, semester },
+      });
+
       res.status(201).json({ success: true, data: newGrade, message: 'Grade created successfully' });
     } catch (error: any) {
       if (error.code === 11000) {
@@ -83,7 +99,7 @@ export class GradeController {
     }
   }
 
-  async update(req: Request, res: Response, next: NextFunction) {
+  async update(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const grade = await Grade.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
       if (!grade) { res.status(404).json({ success: false, message: 'Grade not found' }); return; }
@@ -92,11 +108,20 @@ export class GradeController {
         await recalculateStudentGPA(String(grade.studentId));
       }
 
+      await writeAuditLog({
+        actorId: req.user?.id,
+        actorRole: req.user?.role,
+        action: 'grade.updated',
+        entity: 'grade',
+        entityId: String(grade._id),
+        metadata: { changedFields: Object.keys(req.body) },
+      });
+
       res.status(200).json({ success: true, data: grade, message: 'Grade updated successfully' });
     } catch (error) { next(error); }
   }
 
-  async delete(req: Request, res: Response, next: NextFunction) {
+  async delete(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const grade = await Grade.findByIdAndDelete(req.params.id);
       if (!grade) { res.status(404).json({ success: false, message: 'Grade not found' }); return; }
@@ -104,6 +129,15 @@ export class GradeController {
       if (grade.examType === 'see') {
         await recalculateStudentGPA(String(grade.studentId));
       }
+
+      await writeAuditLog({
+        actorId: req.user?.id,
+        actorRole: req.user?.role,
+        action: 'grade.deleted',
+        entity: 'grade',
+        entityId: String(grade._id),
+        metadata: { studentId: String(grade.studentId), courseId: String(grade.courseId), semester: grade.semester },
+      });
 
       res.status(200).json({ success: true, message: 'Grade deleted successfully' });
     } catch (error) { next(error); }

@@ -1,65 +1,117 @@
-import { ButtonHTMLAttributes } from 'react';
+import { forwardRef, ButtonHTMLAttributes, ReactNode } from 'react';
 import { LucideIcon } from 'lucide-react';
 
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   icon?: LucideIcon;
+  iconPosition?: 'left' | 'right';
   isLoading?: boolean;
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
-export const Button = ({
+const SIZE_STYLES = {
+  sm: { padding: '5px 11px', fontSize: 12, gap: 5 },
+  md: { padding: '7px 14px', fontSize: 13, gap: 6 },
+  lg: { padding: '9px 18px', fontSize: 14, gap: 7 },
+};
+
+const ICON_SIZES = { sm: 13, md: 14, lg: 15 };
+
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(({
   variant = 'primary',
   size = 'md',
   icon: Icon,
-  isLoading,
+  iconPosition = 'left',
+  isLoading = false,
   children,
   className = '',
   disabled,
+  style,
   ...props
-}: ButtonProps) => {
-  const sizeStyles = {
-    sm: { padding: '5px 11px', fontSize: 12, gap: 5 },
-    md: { padding: '7px 14px', fontSize: 13, gap: 6 },
-    lg: { padding: '9px 18px', fontSize: 14, gap: 7 },
-  };
+}, ref) => {
+  const isDisableOrLoading = disabled || isLoading;
 
-  const iconSize = { sm: 13, md: 14, lg: 15 };
+  const renderIcon = () => {
+    if (isLoading && iconPosition === 'left') {
+      return (
+        <span
+          className="btn-spinner"
+          style={{
+            width: ICON_SIZES[size],
+            height: ICON_SIZES[size],
+            border: '1.5px solid currentColor',
+            borderTopColor: 'transparent',
+            borderRadius: '50%',
+            display: 'inline-block',
+            animation: 'btn-spin 0.6s linear infinite',
+            flexShrink: 0,
+          }}
+        />
+      );
+    }
+
+    if (Icon) {
+      return <Icon size={ICON_SIZES[size]} style={{ flexShrink: 0 }} />;
+    }
+
+    return null;
+  };
 
   return (
     <button
+      ref={ref}
       className={`btn btn-${variant} ${className}`}
-      style={sizeStyles[size]}
-      disabled={disabled || isLoading}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontFamily: 'Instrument Sans, sans-serif',
+        fontWeight: 500,
+        borderRadius: 8,
+        cursor: isDisableOrLoading ? 'not-allowed' : 'pointer',
+        opacity: isDisableOrLoading ? 0.55 : 1,
+        pointerEvents: isDisableOrLoading ? 'none' : 'auto',
+        transition: 'all 0.15s ease',
+        border: 'none',
+        outline: 'none',
+        ...SIZE_STYLES[size],
+        ...style,
+      }}
+      disabled={isDisableOrLoading}
       {...props}
     >
-      {isLoading ? (
-        <span style={{
-          width: iconSize[size],
-          height: iconSize[size],
-          border: '1.5px solid currentColor',
-          borderTopColor: 'transparent',
-          borderRadius: '50%',
-          display: 'inline-block',
-          animation: 'btn-spin 0.6s linear infinite',
-          flexShrink: 0,
-        }} />
-      ) : Icon && (
-        <Icon size={iconSize[size]} style={{ flexShrink: 0 }} />
+      {iconPosition === 'left' && renderIcon()}
+
+      <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+        {children}
+      </span>
+
+      {iconPosition === 'right' && (
+        isLoading ? (
+          <span
+            className="btn-spinner"
+            style={{
+              width: ICON_SIZES[size],
+              height: ICON_SIZES[size],
+              border: '1.5px solid currentColor',
+              borderTopColor: 'transparent',
+              borderRadius: '50%',
+              display: 'inline-block',
+              animation: 'btn-spin 0.6s linear infinite',
+              flexShrink: 0,
+            }}
+          />
+        ) : renderIcon()
       )}
-      {children}
 
       <style>{`
         @keyframes btn-spin {
           to { transform: rotate(360deg); }
         }
-        .btn:disabled {
-          opacity: 0.45;
-          cursor: not-allowed;
-          pointer-events: none;
-        }
       `}</style>
     </button>
   );
-};
+});
+
+Button.displayName = 'Button';

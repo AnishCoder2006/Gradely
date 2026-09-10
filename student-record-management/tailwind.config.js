@@ -8,14 +8,14 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Geist', 'system-ui', 'sans-serif'],
-        mono: ['Geist Mono', 'monospace'],
+        sans: ['Instrument Sans', 'sans-serif'],
+        mono: ['IBM Plex Mono', 'monospace'],
       },
       colors: {
-        base:    'var(--bg-base)',
-        card:    'var(--bg-card)',
-        accent:  'var(--accent)',
-        border:  'var(--border)',
+        base: 'var(--bg-base)',
+        card: 'var(--bg-card)',
+        accent: 'var(--accent)',
+        border: 'var(--border)',
       },
       borderRadius: {
         sm: 'var(--radius-sm)',

@@ -24,12 +24,17 @@ export const useToast = () => {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
+  const success = useCallback((msg: string) => addToast(msg, 'success'), [addToast]);
+  const error = useCallback((msg: string) => addToast(msg, 'error'), [addToast]);
+  const warning = useCallback((msg: string) => addToast(msg, 'warning'), [addToast]);
+  const info = useCallback((msg: string) => addToast(msg, 'info'), [addToast]);
+
   return {
     toasts,
-    success: (msg: string) => addToast(msg, 'success'),
-    error:   (msg: string) => addToast(msg, 'error'),
-    warning: (msg: string) => addToast(msg, 'warning'),
-    info:    (msg: string) => addToast(msg, 'info'),
+    success,
+    error,
+    warning,
+    info,
     removeToast,
   };
 };

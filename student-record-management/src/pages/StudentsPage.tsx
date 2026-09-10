@@ -1,63 +1,60 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiClient } from '../services/api';
-import { studentService } from '../services/studentService';
 import { Student, StudentFormData } from '../types/student.types';
 import { Table } from '../components/common/Table';
 import { Input } from '../components/common/Input';
 import { Modal } from '../components/common/Modal';
 import { Pagination } from '../components/common/Pagination';
-import { usePagination } from '../context/hooks/usePagination';
 import { useToastContext } from '../context/ToastContext';
+import {
+  useCreateStudentMutation,
+  useDeleteStudentMutation,
+  useGetStudentsQuery,
+  useUpdateStudentMutation,
+} from '../store';
 import { Plus, Edit, Trash2, Eye, Search } from 'lucide-react';
 
-const LIMIT = 1;
+const LIMIT = 10;
 
 const StudentsPage = () => {
   const navigate = useNavigate();
   const { success, error: toastError } = useToastContext();
 
+  const [page, setPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
-  const [showForm, setShowForm]     = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [formError, setFormError]   = useState<string | null>(null);
 
   const [formData, setFormData] = useState<StudentFormData>({
     name: '', email: '', phone: '',
     dateOfBirth: '', gender: 'male', address: '',
   });
 
-  const fetchStudentsPage = useCallback(async (page: number, limit: number) => {
-    const params = new URLSearchParams();
-    params.set('page', String(page));
-    params.set('limit', String(limit));
-    if (searchTerm) params.set('search', searchTerm);
+  const { data, isLoading, isFetching, error } = useGetStudentsQuery({
+    page,
+    limit: LIMIT,
+    search: searchTerm || undefined,
+  });
+  const [createStudent, { isLoading: isCreating }] = useCreateStudentMutation();
+  const [updateStudent, { isLoading: isUpdating }] = useUpdateStudentMutation();
+  const [deleteStudent] = useDeleteStudentMutation();
 
-    const result = await apiClient.getPaginated<Student[]>(`/students?${params.toString()}`);
-    return {
-      data: result.data,
-      total: result.pagination?.total ?? result.data.length,
-    };
+  const students = data?.data ?? [];
+  const total = data?.pagination?.total ?? students.length;
+  const totalPages = data?.pagination?.totalPages ?? 1;
+
+  useEffect(() => {
+    setPage(1);
   }, [searchTerm]);
 
-  const {
-    items: students, page, totalPages, total, limit,
-    loading, error, goToPage, refresh, fetchPage,
-  } = usePagination<Student>(fetchStudentsPage, { limit: LIMIT });
-
-  // Initial load
-  useEffect(() => { fetchPage(1); }, []); // eslint-disable-line
-
-  // Refetch page 1 whenever search term changes
   useEffect(() => {
-    const t = setTimeout(() => fetchPage(1), 300); // debounce
-    return () => clearTimeout(t);
-  }, [searchTerm]); // eslint-disable-line
-
-  useEffect(() => {
-    if (error) toastError(error);
-  }, [error]);
+    if (error) {
+      const message = typeof error === 'string' ? error : 'Failed to load students.';
+      toastError(message);
+    }
+  }, [error, toastError]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,16 +62,15 @@ const StudentsPage = () => {
     setFormError(null);
     try {
       if (editingStudent) {
-        await studentService.update(editingStudent._id, formData);
+        await updateStudent({ id: editingStudent._id, data: formData }).unwrap();
         success('Student updated successfully!');
       } else {
-        await studentService.create(formData);
+        await createStudent(formData).unwrap();
         success('Student created successfully!');
       }
-      refresh();
       resetForm();
-    } catch {
-      setFormError('Failed to save student. Please try again.');
+    } catch (err: any) {
+      setFormError(err?.message || 'Failed to save student. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -102,16 +98,15 @@ const StudentsPage = () => {
   const handleDelete = async (id: string) => {
     if (!window.confirm('Permanently delete this student?')) return;
     try {
-      await studentService.delete(id);
+      await deleteStudent(id).unwrap();
       success('Student deleted.');
-      refresh();
     } catch {
       toastError('Failed to delete student.');
     }
   };
 
   const columns = [
-    { header: 'Name',  accessor: 'name'  as const },
+    { header: 'Name', accessor: 'name' as const },
     { header: 'Email', accessor: 'email' as const },
     { header: 'Phone', accessor: 'phone' as const },
     {
@@ -161,10 +156,10 @@ const StudentsPage = () => {
       </div>
 
       <div className="animate-fade-up" style={{ animationDelay: '60ms' }}>
-        <Table data={students} columns={columns} isLoading={loading}
+        <Table data={students} columns={columns} isLoading={isLoading || isFetching}
           emptyMessage="No students found" emptySubtext="Add your first student to get started." />
 
-        <Pagination page={page} totalPages={totalPages} total={total} limit={limit} onPageChange={goToPage} />
+        <Pagination page={page} totalPages={totalPages} total={total} limit={LIMIT} onPageChange={setPage} />
       </div>
 
       <Modal isOpen={showForm} onClose={resetForm}
@@ -193,8 +188,8 @@ const StudentsPage = () => {
             <Input label="Address" value={formData.address}
               onChange={e => setFormData({ ...formData, address: e.target.value })} placeholder="e.g. 12 MG Road, Bengaluru" required />
             <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
-              <button type="submit" className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }} disabled={submitting}>
-                <span>{submitting ? 'Saving...' : editingStudent ? 'Update Student' : 'Create Student'}</span>
+              <button type="submit" className="btn btn-primary" style={{ flex: 1, justifyContent: 'center' }} disabled={submitting || isCreating || isUpdating}>
+                <span>{submitting || isCreating || isUpdating ? 'Saving...' : editingStudent ? 'Update Student' : 'Create Student'}</span>
               </button>
               <button type="button" className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center' }} onClick={resetForm}>
                 <span>Cancel</span>

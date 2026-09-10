@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { studentService } from '../../services/studentService';
-import { Student } from '../../types/student.types';
+import {
+  useGetStudentsQuery,
+  useCreateStudentMutation,
+  useUpdateStudentMutation,
+} from '../../store';
 import { Mail, Phone, MapPin, Calendar, User, Award, BookOpen, AlertCircle, Edit, Save, X } from 'lucide-react';
 
 interface MyProfilePageProps {
@@ -10,51 +13,41 @@ interface MyProfilePageProps {
 
 const MyProfilePage = ({ setup = false }: MyProfilePageProps) => {
   const { user } = useAuth();
-  const [student, setStudent]       = useState<Student | null>(null);
-  const [loading, setLoading]       = useState(true);
-  const [error, setError]           = useState<string | null>(null);
-  const [isEditing, setIsEditing]   = useState(setup);
+  const { data: studentsData, isLoading: loading, error: fetchErr } = useGetStudentsQuery({ email: user?.email });
+  const [createStudent] = useCreateStudentMutation();
+  const [updateStudent] = useUpdateStudentMutation();
+
+  const student = studentsData?.data?.[0] ?? null;
+  const [error, setError] = useState<string | null>(fetchErr ? 'Failed to load profile.' : null);
+  const [isEditing, setIsEditing] = useState(setup || !student);
   const [submitting, setSubmitting] = useState(false);
 
   const [form, setForm] = useState({
-    name:        user?.name  || '',
-    email:       user?.email || '',
-    phone:       '',
+    name: user?.name || '',
+    email: user?.email || '',
+    phone: '',
     dateOfBirth: '',
-    gender:      'male' as 'male' | 'female' | 'other',
-    address:     '',
+    gender: 'male' as 'male' | 'female' | 'other',
+    address: '',
   });
 
-  const fetchProfile = async () => {
-    if (!user?.email) return;
-    try {
-      setLoading(true);
-      const data = await studentService.getAll({ email: user.email });
-      const record = data[0] ?? null;
-      if (record) {
-        setStudent(record);
-        setForm({
-          name:  record.name,
-          email: record.email,
-          phone: record.phone,
-          dateOfBirth: record.dateOfBirth
-            ? new Date(record.dateOfBirth).toISOString().split('T')[0]
-            : '',
-          gender:  record.gender,
-          address: record.address,
-        });
-        setIsEditing(false);
-      } else {
-        setIsEditing(true);
-      }
-    } catch {
-      setError('Failed to load profile.');
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (student) {
+      setForm({
+        name: student.name,
+        email: student.email,
+        phone: student.phone,
+        dateOfBirth: student.dateOfBirth
+          ? new Date(student.dateOfBirth).toISOString().split('T')[0]
+          : '',
+        gender: student.gender,
+        address: student.address,
+      });
+      setIsEditing(false);
+    } else if (!loading) {
+      setIsEditing(true);
     }
-  };
-
-  useEffect(() => { fetchProfile(); }, [user]);
+  }, [student, loading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,16 +60,15 @@ const MyProfilePage = ({ setup = false }: MyProfilePageProps) => {
     try {
       const payload = {
         ...form,
-        // Link to the logged-in user so backend can filter by userId
         userId: user?.id,
       };
 
       if (student) {
-        await studentService.update(student._id, payload);
+        await updateStudent({ id: student._id, data: payload }).unwrap();
       } else {
-        await studentService.create(payload);
+        await createStudent(payload).unwrap();
       }
-      fetchProfile();
+      setIsEditing(false);
     } catch (err: any) {
       setError(err.message || 'Failed to save profile.');
     } finally {
@@ -133,9 +125,9 @@ const MyProfilePage = ({ setup = false }: MyProfilePageProps) => {
               </p>
 
               {[
-                { label: 'Full Name',   key: 'name',  type: 'text',  disabled: false, placeholder: 'e.g. Arjun Mehta' },
-                { label: 'Email',       key: 'email', type: 'email', disabled: true,  placeholder: '' },
-                { label: 'Phone *',     key: 'phone', type: 'tel',   disabled: false, placeholder: '+91 9876543210' },
+                { label: 'Full Name', key: 'name', type: 'text', disabled: false, placeholder: 'e.g. Arjun Mehta' },
+                { label: 'Email', key: 'email', type: 'email', disabled: true, placeholder: '' },
+                { label: 'Phone *', key: 'phone', type: 'tel', disabled: false, placeholder: '+91 9876543210' },
                 { label: 'Date of Birth *', key: 'dateOfBirth', type: 'date', disabled: false, placeholder: '' },
               ].map(field => (
                 <div key={field.key}>
@@ -217,7 +209,7 @@ const MyProfilePage = ({ setup = false }: MyProfilePageProps) => {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 margin: '0 auto 16px',
                 fontSize: 22, fontWeight: 600,
-                fontFamily: 'Geist Mono, monospace',
+                fontFamily: 'IBM Plex Mono, monospace',
                 color: '#09090b',
                 boxShadow: '0 8px 20px rgba(234,179,8,0.25)',
               }}>
@@ -227,7 +219,7 @@ const MyProfilePage = ({ setup = false }: MyProfilePageProps) => {
               <p style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)', margin: '0 0 4px' }}>
                 {student?.name}
               </p>
-              <p style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'Geist Mono, monospace', margin: '0 0 14px' }}>
+              <p style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'IBM Plex Mono, monospace', margin: '0 0 14px' }}>
                 ID: {student?._id?.slice(0, 8).toUpperCase()}
               </p>
 
@@ -235,21 +227,27 @@ const MyProfilePage = ({ setup = false }: MyProfilePageProps) => {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14, textAlign: 'left' as const }}>
                 {[
-                  { icon: Mail,     label: 'Email',         value: student?.email },
-                  { icon: Phone,    label: 'Phone',         value: student?.phone },
-                  { icon: MapPin,   label: 'Address',       value: student?.address },
-                  { icon: Calendar, label: 'Date of Birth', value: student?.dateOfBirth
+                  { icon: Mail, label: 'Email', value: student?.email },
+                  { icon: Phone, label: 'Phone', value: student?.phone },
+                  { icon: MapPin, label: 'Address', value: student?.address },
+                  {
+                    icon: Calendar, label: 'Date of Birth', value: student?.dateOfBirth
                       ? new Date(student.dateOfBirth).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
-                      : '—' },
-                  { icon: User,     label: 'Gender',        value: student?.gender
+                      : '—'
+                  },
+                  {
+                    icon: User, label: 'Gender', value: student?.gender
                       ? student.gender.charAt(0).toUpperCase() + student.gender.slice(1)
-                      : '—' },
+                      : '—'
+                  },
                 ].map(row => (
                   <div key={row.label} style={{ display: 'flex', gap: 10 }}>
                     <row.icon size={14} style={{ color: 'var(--text-muted)', marginTop: 3, flexShrink: 0 }} />
                     <div>
-                      <p style={{ fontSize: 9, fontWeight: 600, letterSpacing: '0.1em',
-                        textTransform: 'uppercase' as const, color: 'var(--text-muted)', margin: 0 }}>
+                      <p style={{
+                        fontSize: 9, fontWeight: 600, letterSpacing: '0.1em',
+                        textTransform: 'uppercase' as const, color: 'var(--text-muted)', margin: 0
+                      }}>
                         {row.label}
                       </p>
                       <p style={{ fontSize: 13, color: 'var(--text-primary)', margin: '2px 0 0' }}>
@@ -279,8 +277,8 @@ const MyProfilePage = ({ setup = false }: MyProfilePageProps) => {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
               {[
-                { icon: Award,    label: 'GPA',              value: student.gpa ?? '—',              color: '#eab308' },
-                { icon: BookOpen, label: 'Enrolled Courses', value: student.courseIds?.length ?? 0,  color: '#3b82f6' },
+                { icon: Award, label: 'GPA', value: student.gpa ?? '—', color: '#eab308' },
+                { icon: BookOpen, label: 'Enrolled Courses', value: student.courseIds?.length ?? 0, color: '#3b82f6' },
               ].map(s => (
                 <div key={s.label} style={{
                   padding: '16px 18px',

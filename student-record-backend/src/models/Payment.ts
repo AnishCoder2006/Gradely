@@ -16,6 +16,7 @@ export interface IPayment extends Document {
   currency: string;
   status: PaymentStatus;
   paidAt?: Date;
+  receiptNumber?: string;
 
   createdAt: Date;
   updatedAt: Date;
@@ -37,6 +38,7 @@ const PaymentSchema = new Schema<IPayment>(
 
     status: { type: String, enum: ['created', 'paid', 'failed', 'refunded'], default: 'created' },
     paidAt: { type: Date },
+    receiptNumber: { type: String, unique: true, sparse: true },
   },
   { timestamps: true, versionKey: false }
 );

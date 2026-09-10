@@ -10,6 +10,8 @@ export interface IUser extends Document {
   role: UserRole;
   avatar?: string;
   isActive: boolean;
+  mfaEnabled?: boolean;
+  mfaSecret?: string | null;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(password: string): Promise<boolean>;
@@ -45,6 +47,14 @@ const UserSchema = new Schema<IUser>(
     isActive: {
       type: Boolean,
       default: true,
+    },
+    mfaEnabled: {
+      type: Boolean,
+      default: false,
+    },
+    mfaSecret: {
+      type: String,
+      default: null,
     },
   },
   {

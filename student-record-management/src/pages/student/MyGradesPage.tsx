@@ -1,11 +1,9 @@
-import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { studentService } from '../../services/studentService';
-import { gradeService } from '../../services/gradeService';
-import { courseService } from '../../services/courseService';
-import { GradeRecord } from '../../types/grade.types';
-import { Student } from '../../types/student.types';
-import { Course } from '../../types/course.types';
+import {
+  useGetStudentsQuery,
+  useGetGradesQuery,
+  useGetCoursesQuery,
+} from '../../store';
 import { Award, BookOpen, AlertCircle, Calendar, MessageSquare, TrendingUp, CheckCircle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
@@ -25,46 +23,18 @@ const GradeBadge = ({ grade }: { grade: string }) => {
 
 const MyGradesPage = () => {
   const { user } = useAuth();
-  const [student, setStudent] = useState<Student | null>(null);
-  const [grades, setGrades] = useState<GradeRecord[]>([]);
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: studentsData, isLoading: loadingStudent } = useGetStudentsQuery({ email: user?.email });
+  const student = studentsData?.data?.[0] ?? null;
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!user?.email) return;
-      try {
-        setLoading(true);
-        // 1. Get student record
-        const data = await studentService.getAll({ email: user.email });
-        const studentRecord = data[0] ?? null;
-        if (!studentRecord) {
-          setStudent(null);
-          setLoading(false);
-          return;
-        }
-        setStudent(studentRecord);
+  const { data: gradesData, isLoading: loadingGrades, error: gradesErr } = useGetGradesQuery();
+  const { data: coursesData, isLoading: loadingCourses, error: coursesErr } = useGetCoursesQuery();
 
-        // 2. Get grades and courses in parallel
-        const [allGrades, allCourses] = await Promise.all([
-          gradeService.getAll(),
-          courseService.getAll()
-        ]);
+  const allGrades = Array.isArray(gradesData) ? gradesData : [];
+  const courses = Array.isArray(coursesData) ? coursesData : [];
+  const grades = student ? allGrades.filter(g => g.studentId === student._id) : [];
 
-        // Filter grades for this student
-        const studentGrades = allGrades.filter(g => g.studentId === studentRecord._id);
-        setGrades(studentGrades);
-        setCourses(allCourses);
-      } catch (err) {
-        console.error(err);
-        setError('Failed to load grade records.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, [user]);
+  const loading = loadingStudent || loadingGrades || loadingCourses;
+  const error = (gradesErr || coursesErr) ? 'Failed to load grade records.' : null;
 
   if (loading) {
     return (
@@ -102,7 +72,7 @@ const MyGradesPage = () => {
   // Calculate statistics
   const totalCourses = grades.length;
   const passedCourses = grades.filter(g => g.grade !== 'F').length;
-  
+
   // Calculate credits earned
   let totalCreditsEarned = 0;
   grades.forEach(g => {
@@ -154,7 +124,7 @@ const MyGradesPage = () => {
 
       {/* Summary Cards */}
       <div className="bento-3 stagger animate-fade-up">
-        
+
         <div className="card" style={{ padding: '20px 22px', position: 'relative', overflow: 'hidden' }}>
           <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, backgroundColor: 'var(--accent)', opacity: 0.5 }} />
           <div className="flex-between">
@@ -200,7 +170,7 @@ const MyGradesPage = () => {
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 24, marginTop: 24 }} className="lg:grid-cols-[1fr_380px]">
-          
+
           {/* Grades List Table */}
           <div className="table-wrapper animate-fade-up" style={{ alignSelf: 'start' }}>
             <div style={{ padding: '18px 22px', borderBottom: '1px solid var(--border)' }}>
@@ -225,7 +195,7 @@ const MyGradesPage = () => {
                         <div>
                           <p style={{ fontWeight: 500, margin: 0 }}>{course?.name || g.courseName || 'Course Name'}</p>
                           <span style={{
-                            fontFamily: 'Geist Mono, monospace', fontSize: 10.5,
+                            fontFamily: 'IBM Plex Mono, monospace', fontSize: 10.5,
                             color: 'var(--accent)', backgroundColor: 'rgba(234,179,8,0.1)',
                             padding: '1px 5px', borderRadius: 4, display: 'inline-block', marginTop: 3
                           }}>
@@ -268,7 +238,7 @@ const MyGradesPage = () => {
               <p className="text-eyebrow">Visual Analysis</p>
               <h3 className="text-heading" style={{ marginTop: 4 }}>Subject Performance</h3>
             </div>
-            
+
             <div style={{ flex: 1, minHeight: 250, width: '100%' }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 5 }}>

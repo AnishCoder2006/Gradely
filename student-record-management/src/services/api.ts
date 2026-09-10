@@ -32,12 +32,21 @@ class ApiClient {
         throw new Error('Session expired. Please log in again.');
       }
 
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.message || `HTTP ${response.status}: ${response.statusText}`);
+      const text = await response.text();
+      let data: any = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        if (!response.ok) {
+          throw new Error(`Server connection error (${response.status}): Backend may not be running on port 5000.`);
+        }
+        throw new Error('Invalid JSON response from server.');
       }
 
-      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || `HTTP ${response.status}: ${response.statusText || 'Server Error'}`);
+      }
+
       return data.data ?? data;
     } catch (error: any) {
       console.error(`API Error [${options.method ?? 'GET'}] ${endpoint}:`, error);
@@ -68,12 +77,22 @@ class ApiClient {
       throw new Error('Session expired. Please log in again.');
     }
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.message || `HTTP ${response.status}: ${response.statusText}`);
+    const text = await response.text();
+    let data: any = {};
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      if (!response.ok) {
+        throw new Error(`Server connection error (${response.status}): Backend may not be running on port 5000.`);
+      }
+      throw new Error('Invalid JSON response from server.');
     }
 
-    return response.json();
+    if (!response.ok) {
+      throw new Error(data.message || `HTTP ${response.status}: ${response.statusText || 'Server Error'}`);
+    }
+
+    return data;
   }
 
   get<T>(endpoint: string): Promise<T> {

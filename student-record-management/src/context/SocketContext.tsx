@@ -15,7 +15,7 @@ const SocketContext = createContext<SocketContextType>({ socket: null, connected
 const SOCKET_URL = (import.meta as any).env.VITE_SOCKET_URL || 'http://localhost:5000';
 
 export const SocketProvider = ({ children }: { children: ReactNode }) => {
-  const { token, isAuthenticated } = useAuth();
+  const { token, isAuthenticated, logout } = useAuth();
   const socketRef = useRef<Socket | null>(null);
   const [connected, setConnected] = useState(false);
 
@@ -43,6 +43,9 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
     socket.on('connect_error', (err) => {
       console.error('Socket connection error:', err.message);
       setConnected(false);
+      if (/invalid|expired/i.test(err.message)) {
+        logout();
+      }
     });
 
     socketRef.current = socket;
@@ -51,7 +54,7 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [isAuthenticated, token]);
+  }, [isAuthenticated, token, logout]);
 
   return (
     <SocketContext.Provider value={{ socket: socketRef.current, connected }}>

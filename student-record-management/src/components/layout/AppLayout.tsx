@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { RoleSidebar } from './RoleSidebar';
 import { Header } from './Header';
 import { Footer } from './Footer';
@@ -9,9 +10,10 @@ interface AppLayoutProps {
 
 export const AppLayout = ({ children }: AppLayoutProps) => {
   const location = useLocation();
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   return (
-    <div style={{
+    <div className="app-frame" style={{
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -19,7 +21,7 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
       padding: '24px',
       backgroundColor: 'transparent',
     }}>
-      <div style={{
+      <div className="app-shell" style={{
         display: 'flex',
         width: '100%',
         maxWidth: '1600px',
@@ -31,12 +33,18 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
         overflow: 'hidden',
         position: 'relative'
       }}>
-        <RoleSidebar />
+        {/* RoleSidebar now receives collapse props */}
+        <RoleSidebar
+          isCollapsed={isSidebarCollapsed}
+          onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        />
+
         <div style={{
           flex: 1,
           display: 'flex',
           flexDirection: 'column',
           minWidth: 0,
+          transition: 'all 0.25s ease',
         }}>
           <Header />
           <main
