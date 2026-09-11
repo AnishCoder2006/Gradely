@@ -1,294 +1,381 @@
-![CI](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![TypeScript](https://img.shields.io/badge/TypeScript-Strict-3178C6)
+# Gradely
 
-# 🎓 Student Record Management System
-
-A full-stack, role-based academic platform for managing students, courses, grades, attendance, fees, and communication across three portals: **👑 Admin**, **📚 Teacher**, and **🎒 Student**.
-
-Built to explore **production-grade patterns** — event-driven payment processing, idempotent consumers, distributed caching, and real-time communication — rather than just CRUD over a database.
-
-> Replace `OWNER/REPO` above with your actual GitHub path once the badge is wired up.
-
----
+![Build status](https://img.shields.io/github/actions/workflow/status/AnishCoder2006/Gradely/ci.yml?style=for-the-badge&logo=githubactions&logoColor=white&label=CI) ![GitHub stars](https://img.shields.io/github/stars/AnishCoder2006/Gradely?style=for-the-badge&logo=github) ![GitHub forks](https://img.shields.io/github/forks/AnishCoder2006/Gradely?style=for-the-badge&logo=github) ![GitHub issues](https://img.shields.io/github/issues/AnishCoder2006/Gradely?style=for-the-badge&logo=github) ![Last commit](https://img.shields.io/github/last-commit/AnishCoder2006/Gradely?style=for-the-badge&logo=github) ![npm version](https://img.shields.io/npm/v/student-record-backend?style=for-the-badge&logo=npm&logoColor=white) ![npm downloads](https://img.shields.io/npm/dm/student-record-backend?style=for-the-badge&logo=npm&logoColor=white)
 
 ## 📑 Table of Contents
 
-- [🤔 Why this exists](#why-this-exists)
-- [🏗️ Architecture](#architecture)
-- [✨ Feature overview](#feature-overview)
-- [🛠️ Tech stack](#tech-stack)
-- [🚀 Getting started](#getting-started)
-- [🔐 Environment variables](#environment-variables)
-- [💓 API health](#api-health)
-- [✅ Testing & CI](#testing--ci)
-- [☁️ Deployment](#deployment)
-- [📁 Project structure](#project-structure)
-- [📌 Resume bullets](#resume-bullets)
+- [Description](#description)
+- [Tech Stack](#tech-stack)
+- [Architecture](#architecture)
+- [Quick Start](#quick-start)
+- [Environment Variables](#environment-variables)
+- [Key Dependencies](#key-dependencies)
+- [Available Scripts](#available-scripts)
+- [API Endpoints](#api-endpoints)
+- [Project Structure](#project-structure)
+- [Development Setup](#development-setup)
+- [Testing](#testing)
+- [Deployment](#deployment)
+- [Contributors](#contributors)
+- [Contributing](#contributing)
 
----
+## 📝 Description
 
-## 🤔 Why this exists
+Gradely — a backend api built with Docker, Express.js, MongoDB, Redis, Tailwind CSS, TypeScript, Vite.
 
-Most student-management projects stop at authentication and a CRUD table. This one is built around a few **deliberate systems-design decisions** instead:
+## 🛠️ Tech Stack
 
-- ⚡ **Payments are event-driven, not synchronous.** A successful Razorpay payment publishes a `payment.completed` event to Kafka rather than generating a receipt inline — so receipt generation, audit logging, and real-time notification are decoupled from the payment request itself.
-- 🔁 **Consumers are idempotent by design.** Kafka guarantees at-least-once delivery, not exactly-once — so every event is checked against a `ProcessedEvent` record before its side effects run, preventing duplicate receipts if a consumer rebalances or redelivers.
-- 🛡️ **Infrastructure dependencies degrade gracefully instead of taking the app down.** Both Redis and Kafka can be disabled via environment flags (`REDIS_ENABLED`, `KAFKA_ENABLED`), with the application falling back to in-memory caching and synchronous payment processing respectively — so the app runs correctly **with or without** that infrastructure present.
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white) ![Express.js](https://img.shields.io/badge/Express.js-000000?style=for-the-badge&logo=express&logoColor=white) ![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white) ![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white) ![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white) ![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
 
-That last point is also why this can be demoed and deployed **for free** — see [Kafka modes](#kafka-modes) below.
-
+**Notable libraries:** Mongoose, Socket.IO, Vitest, Zod
 
 ## 🏗️ Architecture
 
-```text
-                    React + Vite frontend
-                            |
-                    REST API + Socket.IO
-                            |
-                Express + TypeScript backend
-                 /            |             \
-            MongoDB         Redis          Kafka (optional)
-                                              |
-                                       payment.completed
-                                              |
-                              receipt + audit log + Socket.IO push
+A high-level view of how the main pieces fit together:
+
+```mermaid
+flowchart TD
+    User["👤 User / Browser"]
+    API["⚙️ Express API"]
+    User --> API
+    DB[("🗄️ MongoDB")]
+    API --> DB
+    EXT0["🔌 Realtime"]
+    API --> EXT0
 ```
 
-### ⚡ Kafka modes
-
-Two modes, same idempotent processing logic underneath — only the trigger changes.
-
-**🐳 Local / full demo — `docker compose up --build`**
-Runs the complete stack including a **real Kafka broker**. `KAFKA_ENABLED=true`. A successful payment publishes `payment.completed`; the consumer performs idempotent receipt generation, audit logging, and a Socket.IO push to the paying student — the full event-driven pipeline, live.
-
-**☁️ Production (no hosted broker required) — `KAFKA_ENABLED=false`**
-The same idempotent side-effect function runs synchronously inside the payment verification request instead of via a consumer. **No behavior is lost** — receipts, audit logs, and notifications still happen — it's just triggered inline rather than asynchronously. `GET /api/health` reports Kafka as `"disabled"`, not `"down"`, since this is an intentional configuration rather than a failure.
-
-This means the app is **fully deployable on free-tier hosting** without a paid Kafka broker, while the real event-driven pipeline remains fully functional and demoable locally via Docker Compose.
-
-## ✨ Feature overview
-
-### 👑 Admin portal
-- Approve or reject student registrations
-- Review and approve/reject teacher course proposals, with rejection reason
-- Assign and unassign teachers to approved courses
-- View all payment transactions, filter by status
-- Audit log viewer
-- Manage announcements, fees, courses, grades, and attendance
-
-### 📚 Teacher portal
-- View assigned courses and enrolled students
-- Mark daily attendance per course
-- Enter CIE / SEE exam grades with letter-grade mapping
-- Propose new courses for admin approval
-- Reply to student doubts in real time
-
-### 🎒 Student portal
-- **Dashboard:** live GPA, attendance rate, payment status, activity feed
-- **Grades:** CIE/SEE breakdown with visual letter-grade cards
-- **Attendance:** calendar heatmap and trend chart
-- **GPA planner** with radar/bar visualizations
-- Fee payment via Razorpay checkout
-- Profile management
-- Doubt forum with real-time threading, typing indicators, and presence
-
-### 🔗 Cross-cutting
-- 🔐 JWT authentication with TOTP-based MFA (QR-code enrollment) and bcrypt password hashing
-- 🛡️ Three-tier RBAC (Admin / Teacher / Student) enforced at the middleware level
-- ⚡ Redis TTL response caching with automatic invalidation on mutation, exposed via `X-Cache: HIT/MISS`
-- 🚦 Redis-backed distributed rate limiting, consistent across horizontally scaled instances
-- 📡 Socket.IO with a Redis pub/sub adapter for real-time events across multiple backend instances
-- 📝 Structured logging via Pino, with sensitive fields redacted
-- 📄 PDF report export (grades/attendance) via html2canvas + jsPDF
-
-## 🛠️ Tech stack
-
-| Layer | Technologies |
-|---|---|
-| **Frontend** | React 18, TypeScript, Redux Toolkit, RTK Query, React Router, Socket.IO Client, Recharts, Lucide React, Vite |
-| **Backend** | Node.js, Express, TypeScript, MongoDB, Mongoose, Redis (ioredis), KafkaJS, Socket.IO, JWT, bcryptjs, otplib, qrcode, Razorpay, Pino |
-| **Testing** | Vitest, Supertest, MongoDB Memory Server |
-| **Quality** | ESLint, strict TypeScript, GitHub Actions CI |
-| **Infrastructure** | Docker, Docker Compose, MongoDB, Redis, Kafka, ZooKeeper, Nginx |
-
-## 🚀 Getting started
-
-### Option 1 — full stack with Docker 🐳 (recommended, includes Kafka)
+## ⚡ Quick Start
 
 ```bash
-cp .env.example .env
-# set at least JWT_SECRET in .env
 
-docker compose up --build
-```
+# 1. Clone the repository
+git clone https://github.com/AnishCoder2006/Gradely.git
 
-| Service | URL |
-|---|---|
-| Frontend | http://localhost:5173 |
-| Backend | http://localhost:5000 |
-| Health check | http://localhost:5000/api/health |
-| Kafka broker | localhost:9092 |
-| MongoDB | localhost:27017 |
-| Redis | localhost:6379 |
+# 2. Install dependencies
+npm install
 
-```bash
-docker compose down          # stop services, keep data
-docker compose down -v       # stop and wipe MongoDB/Redis volumes — only when you mean it
-```
+# 3. Configure environment
+cp .env.example .env   # then fill in the values
 
-### Option 2 — frontend and backend separately (Kafka disabled by default)
-
-**Backend** — `student-record-backend/.env`:
-
-```env
-MONGO_URI=mongodb://localhost:27017/student-record-management
-PORT=5000
-NODE_ENV=development
-JWT_SECRET=replace-with-a-long-local-secret
-JWT_EXPIRES_IN=7d
-REDIS_ENABLED=true
-REDIS_URL=redis://localhost:6379
-KAFKA_ENABLED=false
-CLIENT_URL=http://localhost:5173
-```
-
-```bash
-cd student-record-backend
-npm ci
+# 4. Start the dev server
 npm run dev
 ```
 
-**Frontend** — in a second terminal:
+## 🔑 Environment Variables
+
+The following environment variables are required (see `.env.example`):
 
 ```bash
-cd student-record-management
-npm ci
-npm run dev
+JWT_SECRET=
+JWT_EXPIRES_IN=
+RAZORPAY_KEY_ID=
+RAZORPAY_KEY_SECRET=
+RAZORPAY_WEBHOOK_SECRET=
 ```
 
-This profile runs the full app with Kafka disabled unless you point it at a running broker yourself. Use Docker Compose (Option 1) when you specifically want to demo the event-driven pipeline.
+## 📦 Key Dependencies
 
-## 🔐 Environment variables
-
-**Secrets are never committed** — `.env` is gitignored throughout.
-
-**Backend**
-
-```text
-MONGO_URI
-REDIS_URL
-REDIS_ENABLED
-KAFKA_ENABLED
-KAFKA_BROKERS
-JWT_SECRET
-JWT_EXPIRES_IN
-CLIENT_URL
-RAZORPAY_KEY_ID
-RAZORPAY_KEY_SECRET
-RAZORPAY_WEBHOOK_SECRET
-LOG_LEVEL
+```
+@socket.io/redis-adapter: ^8.3.0
+bcryptjs: ^3.0.3
+cors: ^2.8.6
+dotenv: ^16.6.1
+express: ^4.22.2
+express-rate-limit: ^8.5.2
+express-rate-limiter: ^1.3.1
+helmet: ^7.2.0
+jsonwebtoken: ^9.0.3
+kafkajs: ^2.2.4
+mongoose: ^8.24.0
+morgan: ^1.11.0
+otplib: ^12.0.1
+pino: ^9.7.0
+pino-http: ^10.4.0
 ```
 
-**Frontend**
+## 🚀 Available Scripts
 
-```text
-VITE_API_URL
-VITE_SOCKET_URL
+- **dev** — `npm run dev`
+- **build** — `npm run build`
+- **start** — `npm run start`
+- **type-check** — `npm run type-check`
+- **lint** — `npm run lint`
+- **test** — `npm run test`
+- **test:watch** — `npm run test:watch`
+- **test:coverage** — `npm run test:coverage`
+
+## 🌐 API Endpoints
+
+Detected endpoints (best-effort scan):
+
+```
+POST /api/payments/webhook
+GET /api/health
+GET /
+POST /
+DELETE /:id
+GET /summary/:studentId
+POST /mark
 ```
 
-## 💓 API health
+## 📁 Project Structure
 
-`GET /api/health` reports live dependency status:
-
-```json
-{
-  "success": true,
-  "message": "API running",
-  "dependencies": {
-    "mongo": "up",
-    "redis": "up",
-    "kafka": "disabled"
-  }
-}
 ```
-
-Returns `503` if an **enabled** dependency is unreachable. A deliberately disabled dependency (Redis or Kafka) never fails the check — that distinction is the whole point of the graceful-degradation design. ✅
-
-## ✅ Testing & CI
-
-```bash
-# frontend
-cd student-record-management
-npm run type-check && npm run lint && npm run build
-
-# backend
-cd student-record-backend
-npm run type-check && npm run lint && npm test && npm run build
-```
-
-Backend test coverage focuses on the parts of the system where correctness actually matters, not blanket line coverage:
-
-- **Kafka consumer idempotency** — the same `payment.completed` event processed twice does not create duplicate receipts or audit entries
-- **RBAC** — each of the three roles is correctly allowed/denied on representative protected routes
-- **Razorpay signature verification** — valid and tampered signatures, SDK mocked
-- **JWT + TOTP auth** — token issuance/expiry, valid/wrong/expired MFA codes, deterministic time source
-- **Redis cache helpers** — hit/miss behavior and fallback when `REDIS_ENABLED=false`
-- **`/api/health`** — correct status per dependency state
-
-CI (GitHub Actions, `ci.yml`) runs on every push and PR to `main`: reproducible installs (`npm ci`), type-checking, linting, the full Vitest suite, and both frontend/backend builds — with `node_modules` and `mongodb-memory-server` binary caching to keep runs fast.
-
-## ☁️ Deployment
-
-Multi-stage Docker images 🐳: [`student-record-backend/Dockerfile`](student-record-backend/Dockerfile) (Node build → slim production runtime) and [`student-record-management/Dockerfile`](student-record-management/Dockerfile) (Vite build → Nginx).
-
-**💸 Hobby-tier deployment (free), Kafka disabled:**
-
-```env
-NODE_ENV=production
-KAFKA_ENABLED=false
-REDIS_ENABLED=true
-MONGO_URI=<managed MongoDB URL>
-REDIS_URL=<managed Redis URL>
-JWT_SECRET=<long random secret>
-CLIENT_URL=<frontend URL>
-```
-
-- 🖥️ Backend → Railway or Render (Docker deploy, health check path `GET /api/health`)
-- 🗄️ Database → MongoDB Atlas free tier
-- ⚡ Cache → Railway/Render managed Redis free tier
-- 🌐 Frontend → Vercel or Netlify, built with `VITE_API_URL` and `VITE_SOCKET_URL` pointed at the deployed backend
-
-**If you want the live deployment to run the real Kafka pipeline** rather than the synchronous fallback, point `KAFKA_BROKERS` at a managed broker (e.g. Confluent Cloud) and set `KAFKA_ENABLED=true` — note this typically requires a paid or trial-credit plan, which is why it's off by default here.
-
-## 📁 Project structure
-
-```text
 .
-├── student-record-backend/       # Express + TypeScript API
-│   ├── src/
-│   │   ├── controllers/
-│   │   ├── models/                # 11 Mongoose models
-│   │   ├── middleware/            # auth, RBAC, rate limiting
-│   │   ├── services/               # kafka, redis, cache helpers
-│   │   └── tests/                  # Vitest suites
-│   └── Dockerfile
-├── student-record-management/    # React + TypeScript SPA
-│   ├── src/
-│   │   ├── features/                # Redux Toolkit slices + RTK Query APIs
-│   │   ├── components/
-│   │   └── pages/                   # Admin / Teacher / Student portals
-│   └── Dockerfile
+├── .env.example
 ├── docker-compose.yml
-└── .github/workflows/ci.yml
+├── frontendSkill.md
+├── student-record-backend
+│   ├── Dockerfile
+│   ├── eslint.config.js
+│   ├── package.json
+│   ├── src
+│   │   ├── app.test.ts
+│   │   ├── app.ts
+│   │   ├── config
+│   │   │   ├── db.ts
+│   │   │   └── logger.ts
+│   │   ├── controllers
+│   │   │   ├── announcement.controller.ts
+│   │   │   ├── attendance.controller.ts
+│   │   │   ├── auditLog.controller.ts
+│   │   │   ├── auth.controller.test.ts
+│   │   │   ├── auth.controller.ts
+│   │   │   ├── course.controller.ts
+│   │   │   ├── doubt.controller.ts
+│   │   │   ├── fee.controller.ts
+│   │   │   ├── grade.controller.ts
+│   │   │   ├── payment.controller.test.ts
+│   │   │   ├── payment.controller.ts
+│   │   │   ├── student.controller.ts
+│   │   │   └── user.controller.ts
+│   │   ├── dtos
+│   │   │   ├── course.dto.ts
+│   │   │   └── student.dto.ts
+│   │   ├── middleware
+│   │   │   ├── auth.middleware.test.ts
+│   │   │   ├── auth.middleware.ts
+│   │   │   ├── cache.middleware.ts
+│   │   │   ├── error.middleware.ts
+│   │   │   ├── rateLimit.middleware.ts
+│   │   │   └── rbac.middleware.test.ts
+│   │   ├── models
+│   │   │   ├── Announcement.ts
+│   │   │   ├── Attendance.ts
+│   │   │   ├── AuditLog.ts
+│   │   │   ├── Course.ts
+│   │   │   ├── Doubt.ts
+│   │   │   ├── Fee.ts
+│   │   │   ├── Grade.ts
+│   │   │   ├── Payment.ts
+│   │   │   ├── ProcessedEvent.ts
+│   │   │   ├── Student.ts
+│   │   │   └── User.ts
+│   │   ├── routes
+│   │   │   ├── announcement.routes.ts
+│   │   │   ├── attendance.routes.ts
+│   │   │   ├── auditLog.routes.ts
+│   │   │   ├── auth.routes.ts
+│   │   │   ├── course.routes.ts
+│   │   │   ├── doubt.routes.ts
+│   │   │   ├── fee.routes.ts
+│   │   │   ├── grades.routes.ts
+│   │   │   ├── payment.routes.ts
+│   │   │   ├── student.routes.ts
+│   │   │   └── user.routes.ts
+│   │   ├── server.ts
+│   │   ├── services
+│   │   │   ├── audit.service.ts
+│   │   │   ├── kafka.service.test.ts
+│   │   │   ├── kafka.service.ts
+│   │   │   ├── redis.service.test.ts
+│   │   │   └── redis.service.ts
+│   │   ├── socket.ts
+│   │   ├── test
+│   │   │   ├── mongo.ts
+│   │   │   └── setup.ts
+│   │   ├── types
+│   │   │   └── response.types.ts
+│   │   └── utils
+│   │       ├── gradeUtils.test.ts
+│   │       └── gradeUtils.ts
+│   ├── tsconfig.json
+│   └── vitest.config.ts
+└── student-record-management
+    ├── Dockerfile
+    ├── eslint.config.js
+    ├── index.html
+    ├── nginx.conf
+    ├── package.json
+    ├── postcss.config.js
+    ├── public
+    │   └── favicon.ico
+    ├── src
+    │   ├── App.tsx
+    │   ├── components
+    │   │   ├── auth
+    │   │   │   └── MfaModal.tsx
+    │   │   ├── common
+    │   │   │   ├── Button.tsx
+    │   │   │   ├── Input.tsx
+    │   │   │   ├── Modal.tsx
+    │   │   │   ├── Pagination.tsx
+    │   │   │   └── Table.tsx
+    │   │   ├── dashboard
+    │   │   │   └── StatCard.tsx
+    │   │   ├── grades
+    │   │   │   └── AddGradeModal.tsx
+    │   │   └── layout
+    │   │       ├── AppLayout.tsx
+    │   │       ├── Footer.tsx
+    │   │       ├── Header.tsx
+    │   │       ├── RoleSidebar.tsx
+    │   │       ├── Sidebar.tsx
+    │   │       └── SidebarToggle.tsx
+    │   ├── context
+    │   │   ├── AuthContext.tsx
+    │   │   ├── SocketContext.tsx
+    │   │   ├── ThemeContext.tsx
+    │   │   ├── ToastContext.tsx
+    │   │   └── hooks
+    │   │       ├── index.ts
+    │   │       ├── useAttendance.ts
+    │   │       ├── useCourses.ts
+    │   │       ├── useDebounce.ts
+    │   │       ├── useGrades.ts
+    │   │       ├── useLocalStorage.ts
+    │   │       ├── usePagination.ts
+    │   │       ├── useStudents.ts
+    │   │       └── useToast.ts
+    │   ├── main.tsx
+    │   ├── pages
+    │   │   ├── AnnouncementsPage.tsx
+    │   │   ├── AttendancePage.tsx
+    │   │   ├── AuthPage.tsx
+    │   │   ├── CoursesPage.tsx
+    │   │   ├── DashboardPage.tsx
+    │   │   ├── DoubtsPage.tsx
+    │   │   ├── GradesPage.tsx
+    │   │   ├── NotFoundPage.tsx
+    │   │   ├── SettingsMfaSection.tsx
+    │   │   ├── SettingsPage.tsx
+    │   │   ├── SettingsShared.tsx
+    │   │   ├── StudentProfilePage.tsx
+    │   │   ├── StudentsPage.tsx
+    │   │   ├── admin
+    │   │   │   ├── AdminAuditLogsPage.tsx
+    │   │   │   ├── AdminPaymentsPage.tsx
+    │   │   │   ├── AdminStudentApprovePage.tsx
+    │   │   │   └── AdminTeacherAssignPage.tsx
+    │   │   ├── index.ts
+    │   │   ├── student
+    │   │   │   ├── MyAttendancePage.tsx
+    │   │   │   ├── MyGradesPage.tsx
+    │   │   │   ├── MyProfilePage.tsx
+    │   │   │   ├── MyProgressPage.tsx
+    │   │   │   ├── PaymentPage.tsx
+    │   │   │   ├── PendingApprovalPage.tsx
+    │   │   │   └── StudentDashboard.tsx
+    │   │   └── teacher
+    │   │       ├── MyCoursesPage.tsx
+    │   │       ├── TeacherAttendancePage.tsx
+    │   │       ├── TeacherMyStudentsPage.tsx
+    │   │       └── TeacherRequestCoursePage.tsx
+    │   ├── router
+    │   │   ├── AppRouter.tsx
+    │   │   └── RoleRouter.tsx
+    │   ├── services
+    │   │   ├── announcementService.ts
+    │   │   ├── api.ts
+    │   │   ├── attendanceService.ts
+    │   │   ├── courseService.ts
+    │   │   ├── doubtService.ts
+    │   │   ├── gradeService.ts
+    │   │   ├── index.ts
+    │   │   ├── paymentService.ts
+    │   │   └── studentService.ts
+    │   ├── store
+    │   │   ├── authSlice.ts
+    │   │   ├── baseApi.ts
+    │   │   ├── hooks.ts
+    │   │   ├── index.ts
+    │   │   └── store.ts
+    │   ├── styles
+    │   │   ├── animations.css
+    │   │   ├── components.css
+    │   │   ├── globals.css
+    │   │   ├── layout.css
+    │   │   ├── tyrography.css
+    │   │   └── variables.css
+    │   ├── types
+    │   │   ├── attendance.types.ts
+    │   │   ├── auth.types.ts
+    │   │   ├── common.types.ts
+    │   │   ├── course.types.ts
+    │   │   ├── grade.types.ts
+    │   │   ├── index.ts
+    │   │   └── student.types.ts
+    │   └── utils
+    │       ├── gradeUtils.ts
+    │       └── pdfExport.ts
+    ├── tailwind.config.js
+    ├── tsconfig.json
+    └── vite.config.ts
 ```
 
-## 📌 Resume bullets
+## 🛠️ Development Setup
 
-- 🚀 Designed an event-driven payment pipeline with **KafkaJS** and idempotent consumer processing for receipts, audit logs, and real-time notifications, with a synchronous fallback mode for deployments without a hosted broker.
-- ⚡ Integrated **Redis** for TTL response caching, cache invalidation, distributed rate limiting, and Socket.IO horizontal-scaling support, with a full in-memory fallback when Redis is unavailable.
-- 🔐 Built **TOTP-based MFA** with QR-code enrollment, JWT authentication, bcrypt password hashing, and three-tier RBAC enforced at the middleware level.
-- 💬 Developed real-time announcements and a threaded doubt forum using authenticated **Socket.IO** connections, typing indicators, and presence tracking.
-- 💳 Integrated **Razorpay** order creation and HMAC signature verification, with both synchronous and Kafka-backed payment-completion paths.
-- 🎨 Built a responsive Admin/Teacher/Student multi-portal SPA in **React, Redux Toolkit, and RTK Query** with optimistic updates and tag-based cache invalidation.
-- ✅ Added targeted **Vitest** integration coverage for Kafka idempotency, RBAC, payment verification, authentication, and Redis-backed workflows; wired into a **GitHub Actions** CI pipeline with type-checking, linting, and build verification on every PR.
+### Node.js / JavaScript
+1. Install Node.js (v18+ recommended)
+2. Install dependencies: `npm install` (or `yarn` / `pnpm install` / `bun install`)
+3. Start the dev server: see the **Quick Start** above
+
+### Docker
+1. `docker build -t my-app .`
+2. `docker run -p 3000:3000 my-app`
+
+## 🧪 Testing
+
+This project uses **Vitest** for testing.
+
+```bash
+npm run test
+```
+
+## 🚢 Deployment
+
+### Docker
+```bash
+docker build -t gradely .
+docker run -p 3000:3000 gradely
+```
+
+### Docker Compose
+```bash
+docker compose up -d
+```
+
+> ⚙️ CI/CD is configured via GitHub Actions (see `.github/workflows/`).
+
+## 👥 Contributing
+
+Contributions are welcome! Here's the standard flow:
+
+1. **Fork** the repository
+2. **Clone** your fork: `git clone https://github.com/AnishCoder2006/Gradely.git`
+3. **Branch**: `git checkout -b feature/your-feature`
+4. **Commit**: `git commit -m 'feat: add some feature'`
+5. **Push**: `git push origin feature/your-feature`
+6. **Open** a pull request
+
+Please follow the existing code style and include tests for new behavior where applicable.
+
+---
+
+<div align="center">
+
+[![Made with ReadmeBuddy](https://img.shields.io/badge/Made%20with-ReadmeBuddy-8B5CFF?style=for-the-badge&logo=markdown&logoColor=white)](https://readmebuddy.com)
+
+<sub>Generate beautiful READMEs in seconds → <a href="https://readmebuddy.com">readmebuddy.com</a></sub>
+
+</div>
