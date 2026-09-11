@@ -1,130 +1,144 @@
-![CI](actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![TypeScript](https://img.shields.io/badge/TypeScript-Strict-3178C6)
 
 # Student Record Management System
 
-A full-stack, role-based student portal built with React, TypeScript, Express, MongoDB, Redis, Kafka, and Socket.IO. The platform supports three portals: Admin, Teacher, and Student.
+A full-stack, role-based academic platform for managing students, courses, grades, attendance, fees, and communication across three portals: **Admin**, **Teacher**, and **Student**.
 
-## Highlights
+Built to explore production-grade patterns — event-driven payment processing, idempotent consumers, distributed caching, and real-time communication — rather than just CRUD over a database.
 
-- Event-driven payment processing with KafkaJS and a `payment.completed` producer/consumer pipeline
-- Idempotent payment side effects using the MongoDB `ProcessedEvent` model
-- Redis TTL caching, cache invalidation, distributed rate limiting, and Socket.IO adapter support
-- Graceful Redis fallback when `REDIS_ENABLED=false`
-- Optional Kafka pipeline controlled by `KAFKA_ENABLED`
-- JWT authentication with TOTP MFA, QR-code enrollment, bcrypt password hashing, and RBAC
-- Razorpay order creation and HMAC signature verification
-- Real-time announcements, doubt replies, typing indicators, presence, and payment notifications
-- Audit logging for important domain actions
-- Responsive React SPA with Redux Toolkit, RTK Query, Recharts, Lucide icons, theme tokens, toasts, tables, and PDF exports
+> Replace `OWNER/REPO` above with your actual GitHub path once the badge is wired up.
+
+---
+
+## Table of Contents
+
+- [Why this exists](#why-this-exists)
+- [Architecture](#architecture)
+- [Feature overview](#feature-overview)
+- [Tech stack](#tech-stack)
+- [Getting started](#getting-started)
+- [Environment variables](#environment-variables)
+- [API health](#api-health)
+- [Testing & CI](#testing--ci)
+- [Deployment](#deployment)
+- [Project structure](#project-structure)
+- [Resume bullets](#resume-bullets)
+
+---
+
+## Why this exists
+
+Most student-management projects stop at authentication and a CRUD table. This one is built around a few deliberate systems-design decisions instead:
+
+- **Payments are event-driven, not synchronous.** A successful Razorpay payment publishes a `payment.completed` event to Kafka rather than generating a receipt inline — so receipt generation, audit logging, and real-time notification are decoupled from the payment request itself.
+- **Consumers are idempotent by design.** Kafka guarantees at-least-once delivery, not exactly-once — so every event is checked against a `ProcessedEvent` record before its side effects run, preventing duplicate receipts if a consumer rebalances or redelivers.
+- **Infrastructure dependencies degrade gracefully instead of taking the app down.** Both Redis and Kafka can be disabled via environment flags (`REDIS_ENABLED`, `KAFKA_ENABLED`), with the application falling back to in-memory caching and synchronous payment processing respectively — so the app runs correctly with or without that infrastructure present.
+
+That last point is also why this can be demoed and deployed for free — see [Kafka modes](#kafka-modes) below.
 
 ## Architecture
 
 ```text
-React + Vite frontend
-        |
-        | REST API + Socket.IO
-        v
-Express + TypeScript backend
-   |          |          |
-MongoDB    Redis      Kafka
-                       |
-                 payment.completed
-                       |
-                 receipt + audit + notification
+                    React + Vite frontend
+                            |
+                    REST API + Socket.IO
+                            |
+                Express + TypeScript backend
+                 /            |             \
+            MongoDB         Redis          Kafka (optional)
+                                              |
+                                       payment.completed
+                                              |
+                              receipt + audit log + Socket.IO push
 ```
 
 ### Kafka modes
 
-The local Docker stack runs the complete event-driven pipeline:
+Two modes, same idempotent processing logic underneath — only the trigger changes.
 
-```bash
-docker compose up --build
-```
+**Local / full demo — `docker compose up --build`**
+Runs the complete stack including a real Kafka broker. `KAFKA_ENABLED=true`. A successful payment publishes `payment.completed`; the consumer performs idempotent receipt generation, audit logging, and a Socket.IO push to the paying student — the full event-driven pipeline, live.
 
-It sets `KAFKA_ENABLED=true`. Payment verification publishes `payment.completed`, and the Kafka consumer performs idempotent receipt generation, audit logging, and Socket.IO notification.
+**Production (no hosted broker required) — `KAFKA_ENABLED=false`**
+The same idempotent side-effect function runs synchronously inside the payment verification request instead of via a consumer. No behavior is lost — receipts, audit logs, and notifications still happen — it's just triggered inline rather than asynchronously. `GET /api/health` reports Kafka as `"disabled"`, not `"down"`, since this is an intentional configuration rather than a failure.
 
-Production can run without a hosted Kafka broker by setting:
+This means the app is fully deployable on free-tier hosting without a paid Kafka broker, while the real event-driven pipeline remains fully functional and demoable locally via Docker Compose.
 
-```env
-KAFKA_ENABLED=false
-```
-
-In that mode, the same idempotent processing function runs synchronously inside the payment verification flow. `/api/health` reports Kafka as `disabled`, not `down`.
-
-## Domain Features
+## Feature overview
 
 ### Admin portal
-
 - Approve or reject student registrations
-- Review and approve teacher course requests
-- Assign and unassign teachers to courses
-- View payment records and audit logs
+- Review and approve/reject teacher course proposals, with rejection reason
+- Assign and unassign teachers to approved courses
+- View all payment transactions, filter by status
+- Audit log viewer
 - Manage announcements, fees, courses, grades, and attendance
 
 ### Teacher portal
-
-- View assigned courses and students
-- Mark daily attendance
-- Enter CIE and SEE grades
-- Request new courses
-- Reply to student doubts
+- View assigned courses and enrolled students
+- Mark daily attendance per course
+- Enter CIE / SEE exam grades with letter-grade mapping
+- Propose new courses for admin approval
+- Reply to student doubts in real time
 
 ### Student portal
-
-- Dashboard with GPA, attendance, payments, and activity
-- CIE/SEE grade breakdown and letter grades
-- Attendance history and trend visualizations
-- Progress and GPA planning tools
-- Razorpay fee payments
+- Dashboard: live GPA, attendance rate, payment status, activity feed
+- Grades: CIE/SEE breakdown with visual letter-grade cards
+- Attendance: calendar heatmap and trend chart
+- GPA planner with radar/bar visualizations
+- Fee payment via Razorpay checkout
 - Profile management
-- Doubt forum and real-time announcements
+- Doubt forum with real-time threading, typing indicators, and presence
 
-## Technology
+### Cross-cutting
+- JWT authentication with TOTP-based MFA (QR-code enrollment) and bcrypt password hashing
+- Three-tier RBAC (Admin / Teacher / Student) enforced at the middleware level
+- Redis TTL response caching with automatic invalidation on mutation, exposed via `X-Cache: HIT/MISS`
+- Redis-backed distributed rate limiting, consistent across horizontally scaled instances
+- Socket.IO with a Redis pub/sub adapter for real-time events across multiple backend instances
+- Structured logging via Pino, with sensitive fields redacted
+- PDF report export (grades/attendance) via html2canvas + jsPDF
 
-**Frontend:** React 18, TypeScript, Redux Toolkit, RTK Query, React Router, Socket.IO Client, Recharts, Lucide React, Vite
+## Tech stack
 
-**Backend:** Node.js, Express, TypeScript, MongoDB, Mongoose, Redis, KafkaJS, Socket.IO, JWT, bcryptjs, otplib, QRCode, Razorpay, Pino
+| Layer | Technologies |
+|---|---|
+| **Frontend** | React 18, TypeScript, Redux Toolkit, RTK Query, React Router, Socket.IO Client, Recharts, Lucide React, Vite |
+| **Backend** | Node.js, Express, TypeScript, MongoDB, Mongoose, Redis (ioredis), KafkaJS, Socket.IO, JWT, bcryptjs, otplib, qrcode, Razorpay, Pino |
+| **Testing** | Vitest, Supertest, MongoDB Memory Server |
+| **Quality** | ESLint, strict TypeScript, GitHub Actions CI |
+| **Infrastructure** | Docker, Docker Compose, MongoDB, Redis, Kafka, ZooKeeper, Nginx |
 
-**Testing and quality:** Vitest, Supertest, MongoDB Memory Server, ESLint, TypeScript checks, GitHub Actions CI
+## Getting started
 
-**Infrastructure:** Docker, Docker Compose, MongoDB, Redis, Kafka, ZooKeeper, Nginx
-
-## Local Setup
-
-### Option 1: Full stack with Docker
-
-Copy the example environment file at the repository root:
+### Option 1 — full stack with Docker (recommended, includes Kafka)
 
 ```bash
 cp .env.example .env
-```
+# set at least JWT_SECRET in .env
 
-Set at least `JWT_SECRET`, then start the complete stack:
-
-```bash
 docker compose up --build
 ```
 
-Services:
-
-- Frontend: `http://localhost:5173`
-- Backend: `http://localhost:5000`
-- Health: `http://localhost:5000/api/health`
-- Kafka: `localhost:9092`
-- MongoDB: `localhost:27017`
-- Redis: `localhost:6379`
-
-Stop services:
+| Service | URL |
+|---|---|
+| Frontend | http://localhost:5173 |
+| Backend | http://localhost:5000 |
+| Health check | http://localhost:5000/api/health |
+| Kafka broker | localhost:9092 |
+| MongoDB | localhost:27017 |
+| Redis | localhost:6379 |
 
 ```bash
-docker compose down
+docker compose down          # stop services, keep data
+docker compose down -v       # stop and wipe MongoDB/Redis volumes — only when you mean it
 ```
 
-Use `docker compose down -v` only when you intentionally want to delete the MongoDB and Redis volumes.
+### Option 2 — frontend and backend separately (Kafka disabled by default)
 
-### Option 2: Run frontend and backend separately
-
-Start MongoDB locally and optionally Redis. In `student-record-backend/.env`, configure:
+**Backend** — `student-record-backend/.env`:
 
 ```env
 MONGO_URI=mongodb://localhost:27017/student-record-management
@@ -138,15 +152,13 @@ KAFKA_ENABLED=false
 CLIENT_URL=http://localhost:5173
 ```
 
-Install and run the backend:
-
 ```bash
 cd student-record-backend
 npm ci
 npm run dev
 ```
 
-Install and run the frontend in another terminal:
+**Frontend** — in a second terminal:
 
 ```bash
 cd student-record-management
@@ -154,13 +166,13 @@ npm ci
 npm run dev
 ```
 
-The plain development profile keeps Kafka disabled unless a broker is running. Use Docker Compose when you want to demo Kafka locally.
+This profile runs the full app with Kafka disabled unless you point it at a running broker yourself. Use Docker Compose (Option 1) when you specifically want to demo the event-driven pipeline.
 
-## Environment Variables
+## Environment variables
 
-Never commit secrets. The repository ignores `.env` files.
+Secrets are never committed — `.env` is gitignored throughout.
 
-### Backend
+**Backend**
 
 ```text
 MONGO_URI
@@ -177,16 +189,16 @@ RAZORPAY_WEBHOOK_SECRET
 LOG_LEVEL
 ```
 
-### Frontend
+**Frontend**
 
 ```text
 VITE_API_URL
 VITE_SOCKET_URL
 ```
 
-## API Health
+## API health
 
-`GET /api/health` reports the application and dependency state:
+`GET /api/health` reports live dependency status:
 
 ```json
 {
@@ -200,36 +212,36 @@ VITE_SOCKET_URL
 }
 ```
 
-The endpoint returns HTTP `503` when an enabled dependency is unavailable. Disabled Redis or Kafka does not fail the health check.
+Returns `503` if an *enabled* dependency is unreachable. A deliberately disabled dependency (Redis or Kafka) never fails the check — that distinction is the point of the graceful-degradation design.
 
-## Quality Checks
-
-Frontend:
+## Testing & CI
 
 ```bash
+# frontend
 cd student-record-management
-npm run type-check
-npm run lint
-npm run build
-```
+npm run type-check && npm run lint && npm run build
 
-Backend:
-
-```bash
+# backend
 cd student-record-backend
-npm run type-check
-npm run lint
-npm test
-npm run build
+npm run type-check && npm run lint && npm test && npm run build
 ```
 
-The backend test suite covers Kafka consumer idempotency, RBAC, Razorpay signature verification, JWT and TOTP authentication, Redis cache helpers, and API health behavior.
+Backend test coverage focuses on the parts of the system where correctness actually matters, not blanket line coverage:
+
+- **Kafka consumer idempotency** — the same `payment.completed` event processed twice does not create duplicate receipts or audit entries
+- **RBAC** — each of the three roles is correctly allowed/denied on representative protected routes
+- **Razorpay signature verification** — valid and tampered signatures, SDK mocked
+- **JWT + TOTP auth** — token issuance/expiry, valid/wrong/expired MFA codes, deterministic time source
+- **Redis cache helpers** — hit/miss behavior and fallback when `REDIS_ENABLED=false`
+- **`/api/health`** — correct status per dependency state
+
+CI (GitHub Actions, `ci.yml`) runs on every push and PR to `main`: reproducible installs (`npm ci`), type-checking, linting, the full Vitest suite, and both frontend/backend builds — with `node_modules` and `mongodb-memory-server` binary caching to keep runs fast.
 
 ## Deployment
 
-The backend uses a multi-stage Docker image at [student-record-backend/Dockerfile](student-record-backend/Dockerfile). The frontend has a Vite-to-Nginx image at [student-record-management/Dockerfile](student-record-management/Dockerfile).
+Multi-stage Docker images: [`student-record-backend/Dockerfile`](student-record-backend/Dockerfile) (Node build → slim production runtime) and [`student-record-management/Dockerfile`](student-record-management/Dockerfile) (Vite build → Nginx).
 
-For a hobby production deployment, host the backend on Railway or Render, use managed MongoDB and Redis, and set:
+**Hobby-tier deployment (free), Kafka disabled:**
 
 ```env
 NODE_ENV=production
@@ -241,16 +253,41 @@ JWT_SECRET=<long random secret>
 CLIENT_URL=<frontend URL>
 ```
 
-Build the frontend with `VITE_API_URL` pointing to the deployed backend API and `VITE_SOCKET_URL` pointing to the backend origin. Configure the hosting health check as `GET /api/health`.
+- Backend → Railway or Render (Docker deploy, health check path `GET /api/health`)
+- Database → MongoDB Atlas free tier
+- Cache → Railway/Render managed Redis free tier
+- Frontend → Vercel or Netlify, built with `VITE_API_URL` and `VITE_SOCKET_URL` pointed at the deployed backend
 
-To use Kafka in production, provide a managed broker such as Upstash Kafka or Confluent Cloud and set `KAFKA_ENABLED=true` and `KAFKA_BROKERS` accordingly.
+**If you want the live deployment to run the real Kafka pipeline** rather than the synchronous fallback, point `KAFKA_BROKERS` at a managed broker (e.g. Confluent Cloud) and set `KAFKA_ENABLED=true` — note this typically requires a paid or trial-credit plan, which is why it's off by default here.
 
-## Resume Bullets
+## Project structure
 
-- Designed an event-driven payment pipeline with KafkaJS and idempotent consumer processing for receipts, audit logs, and real-time notifications.
-- Integrated Redis for TTL caching, cache invalidation, distributed rate limiting, and Socket.IO horizontal-scaling support.
-- Built TOTP MFA with QR enrollment, JWT authentication, bcrypt password hashing, and three-tier RBAC.
-- Developed real-time announcements and a threaded doubt forum with authenticated Socket.IO connections, typing indicators, and presence tracking.
-- Integrated Razorpay order creation and HMAC signature verification with synchronous and Kafka-backed payment completion modes.
-- Built a responsive Admin, Teacher, and Student multi-portal SPA using React, Redux Toolkit, RTK Query, Recharts, and TypeScript.
-- Added targeted Vitest integration coverage for Kafka idempotency, RBAC, payments, authentication, Redis, and MongoDB-backed workflows.
+```text
+.
+├── student-record-backend/       # Express + TypeScript API
+│   ├── src/
+│   │   ├── controllers/
+│   │   ├── models/                # 11 Mongoose models
+│   │   ├── middleware/            # auth, RBAC, rate limiting
+│   │   ├── services/               # kafka, redis, cache helpers
+│   │   └── tests/                  # Vitest suites
+│   └── Dockerfile
+├── student-record-management/    # React + TypeScript SPA
+│   ├── src/
+│   │   ├── features/                # Redux Toolkit slices + RTK Query APIs
+│   │   ├── components/
+│   │   └── pages/                   # Admin / Teacher / Student portals
+│   └── Dockerfile
+├── docker-compose.yml
+└── .github/workflows/ci.yml
+```
+
+## Resume bullets
+
+- Designed an event-driven payment pipeline with KafkaJS and idempotent consumer processing for receipts, audit logs, and real-time notifications, with a synchronous fallback mode for deployments without a hosted broker.
+- Integrated Redis for TTL response caching, cache invalidation, distributed rate limiting, and Socket.IO horizontal-scaling support, with a full in-memory fallback when Redis is unavailable.
+- Built TOTP-based MFA with QR-code enrollment, JWT authentication, bcrypt password hashing, and three-tier RBAC enforced at the middleware level.
+- Developed real-time announcements and a threaded doubt forum using authenticated Socket.IO connections, typing indicators, and presence tracking.
+- Integrated Razorpay order creation and HMAC signature verification, with both synchronous and Kafka-backed payment-completion paths.
+- Built a responsive Admin/Teacher/Student multi-portal SPA in React, Redux Toolkit, and RTK Query with optimistic updates and tag-based cache invalidation.
+- Added targeted Vitest integration coverage for Kafka idempotency, RBAC, payment verification, authentication, and Redis-backed workflows; wired into a GitHub Actions CI pipeline with type-checking, linting, and build verification on every PR.
