@@ -2,43 +2,44 @@
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![TypeScript](https://img.shields.io/badge/TypeScript-Strict-3178C6)
 
-# Student Record Management System
+# 🎓 Student Record Management System
 
-A full-stack, role-based academic platform for managing students, courses, grades, attendance, fees, and communication across three portals: **Admin**, **Teacher**, and **Student**.
+A full-stack, role-based academic platform for managing students, courses, grades, attendance, fees, and communication across three portals: **👑 Admin**, **📚 Teacher**, and **🎒 Student**.
 
-Built to explore production-grade patterns — event-driven payment processing, idempotent consumers, distributed caching, and real-time communication — rather than just CRUD over a database.
+Built to explore **production-grade patterns** — event-driven payment processing, idempotent consumers, distributed caching, and real-time communication — rather than just CRUD over a database.
 
 > Replace `OWNER/REPO` above with your actual GitHub path once the badge is wired up.
 
 ---
 
-## Table of Contents
+## 📑 Table of Contents
 
-- [Why this exists](#why-this-exists)
-- [Architecture](#architecture)
-- [Feature overview](#feature-overview)
-- [Tech stack](#tech-stack)
-- [Getting started](#getting-started)
-- [Environment variables](#environment-variables)
-- [API health](#api-health)
-- [Testing & CI](#testing--ci)
-- [Deployment](#deployment)
-- [Project structure](#project-structure)
-- [Resume bullets](#resume-bullets)
+- [🤔 Why this exists](#why-this-exists)
+- [🏗️ Architecture](#architecture)
+- [✨ Feature overview](#feature-overview)
+- [🛠️ Tech stack](#tech-stack)
+- [🚀 Getting started](#getting-started)
+- [🔐 Environment variables](#environment-variables)
+- [💓 API health](#api-health)
+- [✅ Testing & CI](#testing--ci)
+- [☁️ Deployment](#deployment)
+- [📁 Project structure](#project-structure)
+- [📌 Resume bullets](#resume-bullets)
 
 ---
 
-## Why this exists
+## 🤔 Why this exists
 
-Most student-management projects stop at authentication and a CRUD table. This one is built around a few deliberate systems-design decisions instead:
+Most student-management projects stop at authentication and a CRUD table. This one is built around a few **deliberate systems-design decisions** instead:
 
-- **Payments are event-driven, not synchronous.** A successful Razorpay payment publishes a `payment.completed` event to Kafka rather than generating a receipt inline — so receipt generation, audit logging, and real-time notification are decoupled from the payment request itself.
-- **Consumers are idempotent by design.** Kafka guarantees at-least-once delivery, not exactly-once — so every event is checked against a `ProcessedEvent` record before its side effects run, preventing duplicate receipts if a consumer rebalances or redelivers.
-- **Infrastructure dependencies degrade gracefully instead of taking the app down.** Both Redis and Kafka can be disabled via environment flags (`REDIS_ENABLED`, `KAFKA_ENABLED`), with the application falling back to in-memory caching and synchronous payment processing respectively — so the app runs correctly with or without that infrastructure present.
+- ⚡ **Payments are event-driven, not synchronous.** A successful Razorpay payment publishes a `payment.completed` event to Kafka rather than generating a receipt inline — so receipt generation, audit logging, and real-time notification are decoupled from the payment request itself.
+- 🔁 **Consumers are idempotent by design.** Kafka guarantees at-least-once delivery, not exactly-once — so every event is checked against a `ProcessedEvent` record before its side effects run, preventing duplicate receipts if a consumer rebalances or redelivers.
+- 🛡️ **Infrastructure dependencies degrade gracefully instead of taking the app down.** Both Redis and Kafka can be disabled via environment flags (`REDIS_ENABLED`, `KAFKA_ENABLED`), with the application falling back to in-memory caching and synchronous payment processing respectively — so the app runs correctly **with or without** that infrastructure present.
 
-That last point is also why this can be demoed and deployed for free — see [Kafka modes](#kafka-modes) below.
+That last point is also why this can be demoed and deployed **for free** — see [Kafka modes](#kafka-modes) below.
 
-## Architecture
+
+## 🏗️ Architecture
 
 ```text
                     React + Vite frontend
@@ -54,21 +55,21 @@ That last point is also why this can be demoed and deployed for free — see [Ka
                               receipt + audit log + Socket.IO push
 ```
 
-### Kafka modes
+### ⚡ Kafka modes
 
 Two modes, same idempotent processing logic underneath — only the trigger changes.
 
-**Local / full demo — `docker compose up --build`**
-Runs the complete stack including a real Kafka broker. `KAFKA_ENABLED=true`. A successful payment publishes `payment.completed`; the consumer performs idempotent receipt generation, audit logging, and a Socket.IO push to the paying student — the full event-driven pipeline, live.
+**🐳 Local / full demo — `docker compose up --build`**
+Runs the complete stack including a **real Kafka broker**. `KAFKA_ENABLED=true`. A successful payment publishes `payment.completed`; the consumer performs idempotent receipt generation, audit logging, and a Socket.IO push to the paying student — the full event-driven pipeline, live.
 
-**Production (no hosted broker required) — `KAFKA_ENABLED=false`**
-The same idempotent side-effect function runs synchronously inside the payment verification request instead of via a consumer. No behavior is lost — receipts, audit logs, and notifications still happen — it's just triggered inline rather than asynchronously. `GET /api/health` reports Kafka as `"disabled"`, not `"down"`, since this is an intentional configuration rather than a failure.
+**☁️ Production (no hosted broker required) — `KAFKA_ENABLED=false`**
+The same idempotent side-effect function runs synchronously inside the payment verification request instead of via a consumer. **No behavior is lost** — receipts, audit logs, and notifications still happen — it's just triggered inline rather than asynchronously. `GET /api/health` reports Kafka as `"disabled"`, not `"down"`, since this is an intentional configuration rather than a failure.
 
-This means the app is fully deployable on free-tier hosting without a paid Kafka broker, while the real event-driven pipeline remains fully functional and demoable locally via Docker Compose.
+This means the app is **fully deployable on free-tier hosting** without a paid Kafka broker, while the real event-driven pipeline remains fully functional and demoable locally via Docker Compose.
 
-## Feature overview
+## ✨ Feature overview
 
-### Admin portal
+### 👑 Admin portal
 - Approve or reject student registrations
 - Review and approve/reject teacher course proposals, with rejection reason
 - Assign and unassign teachers to approved courses
@@ -76,32 +77,32 @@ This means the app is fully deployable on free-tier hosting without a paid Kafka
 - Audit log viewer
 - Manage announcements, fees, courses, grades, and attendance
 
-### Teacher portal
+### 📚 Teacher portal
 - View assigned courses and enrolled students
 - Mark daily attendance per course
 - Enter CIE / SEE exam grades with letter-grade mapping
 - Propose new courses for admin approval
 - Reply to student doubts in real time
 
-### Student portal
-- Dashboard: live GPA, attendance rate, payment status, activity feed
-- Grades: CIE/SEE breakdown with visual letter-grade cards
-- Attendance: calendar heatmap and trend chart
-- GPA planner with radar/bar visualizations
+### 🎒 Student portal
+- **Dashboard:** live GPA, attendance rate, payment status, activity feed
+- **Grades:** CIE/SEE breakdown with visual letter-grade cards
+- **Attendance:** calendar heatmap and trend chart
+- **GPA planner** with radar/bar visualizations
 - Fee payment via Razorpay checkout
 - Profile management
 - Doubt forum with real-time threading, typing indicators, and presence
 
-### Cross-cutting
-- JWT authentication with TOTP-based MFA (QR-code enrollment) and bcrypt password hashing
-- Three-tier RBAC (Admin / Teacher / Student) enforced at the middleware level
-- Redis TTL response caching with automatic invalidation on mutation, exposed via `X-Cache: HIT/MISS`
-- Redis-backed distributed rate limiting, consistent across horizontally scaled instances
-- Socket.IO with a Redis pub/sub adapter for real-time events across multiple backend instances
-- Structured logging via Pino, with sensitive fields redacted
-- PDF report export (grades/attendance) via html2canvas + jsPDF
+### 🔗 Cross-cutting
+- 🔐 JWT authentication with TOTP-based MFA (QR-code enrollment) and bcrypt password hashing
+- 🛡️ Three-tier RBAC (Admin / Teacher / Student) enforced at the middleware level
+- ⚡ Redis TTL response caching with automatic invalidation on mutation, exposed via `X-Cache: HIT/MISS`
+- 🚦 Redis-backed distributed rate limiting, consistent across horizontally scaled instances
+- 📡 Socket.IO with a Redis pub/sub adapter for real-time events across multiple backend instances
+- 📝 Structured logging via Pino, with sensitive fields redacted
+- 📄 PDF report export (grades/attendance) via html2canvas + jsPDF
 
-## Tech stack
+## 🛠️ Tech stack
 
 | Layer | Technologies |
 |---|---|
@@ -111,9 +112,9 @@ This means the app is fully deployable on free-tier hosting without a paid Kafka
 | **Quality** | ESLint, strict TypeScript, GitHub Actions CI |
 | **Infrastructure** | Docker, Docker Compose, MongoDB, Redis, Kafka, ZooKeeper, Nginx |
 
-## Getting started
+## 🚀 Getting started
 
-### Option 1 — full stack with Docker (recommended, includes Kafka)
+### Option 1 — full stack with Docker 🐳 (recommended, includes Kafka)
 
 ```bash
 cp .env.example .env
@@ -168,9 +169,9 @@ npm run dev
 
 This profile runs the full app with Kafka disabled unless you point it at a running broker yourself. Use Docker Compose (Option 1) when you specifically want to demo the event-driven pipeline.
 
-## Environment variables
+## 🔐 Environment variables
 
-Secrets are never committed — `.env` is gitignored throughout.
+**Secrets are never committed** — `.env` is gitignored throughout.
 
 **Backend**
 
@@ -196,7 +197,7 @@ VITE_API_URL
 VITE_SOCKET_URL
 ```
 
-## API health
+## 💓 API health
 
 `GET /api/health` reports live dependency status:
 
@@ -212,9 +213,9 @@ VITE_SOCKET_URL
 }
 ```
 
-Returns `503` if an *enabled* dependency is unreachable. A deliberately disabled dependency (Redis or Kafka) never fails the check — that distinction is the point of the graceful-degradation design.
+Returns `503` if an **enabled** dependency is unreachable. A deliberately disabled dependency (Redis or Kafka) never fails the check — that distinction is the whole point of the graceful-degradation design. ✅
 
-## Testing & CI
+## ✅ Testing & CI
 
 ```bash
 # frontend
@@ -237,11 +238,11 @@ Backend test coverage focuses on the parts of the system where correctness actua
 
 CI (GitHub Actions, `ci.yml`) runs on every push and PR to `main`: reproducible installs (`npm ci`), type-checking, linting, the full Vitest suite, and both frontend/backend builds — with `node_modules` and `mongodb-memory-server` binary caching to keep runs fast.
 
-## Deployment
+## ☁️ Deployment
 
-Multi-stage Docker images: [`student-record-backend/Dockerfile`](student-record-backend/Dockerfile) (Node build → slim production runtime) and [`student-record-management/Dockerfile`](student-record-management/Dockerfile) (Vite build → Nginx).
+Multi-stage Docker images 🐳: [`student-record-backend/Dockerfile`](student-record-backend/Dockerfile) (Node build → slim production runtime) and [`student-record-management/Dockerfile`](student-record-management/Dockerfile) (Vite build → Nginx).
 
-**Hobby-tier deployment (free), Kafka disabled:**
+**💸 Hobby-tier deployment (free), Kafka disabled:**
 
 ```env
 NODE_ENV=production
@@ -253,14 +254,14 @@ JWT_SECRET=<long random secret>
 CLIENT_URL=<frontend URL>
 ```
 
-- Backend → Railway or Render (Docker deploy, health check path `GET /api/health`)
-- Database → MongoDB Atlas free tier
-- Cache → Railway/Render managed Redis free tier
-- Frontend → Vercel or Netlify, built with `VITE_API_URL` and `VITE_SOCKET_URL` pointed at the deployed backend
+- 🖥️ Backend → Railway or Render (Docker deploy, health check path `GET /api/health`)
+- 🗄️ Database → MongoDB Atlas free tier
+- ⚡ Cache → Railway/Render managed Redis free tier
+- 🌐 Frontend → Vercel or Netlify, built with `VITE_API_URL` and `VITE_SOCKET_URL` pointed at the deployed backend
 
 **If you want the live deployment to run the real Kafka pipeline** rather than the synchronous fallback, point `KAFKA_BROKERS` at a managed broker (e.g. Confluent Cloud) and set `KAFKA_ENABLED=true` — note this typically requires a paid or trial-credit plan, which is why it's off by default here.
 
-## Project structure
+## 📁 Project structure
 
 ```text
 .
@@ -282,12 +283,12 @@ CLIENT_URL=<frontend URL>
 └── .github/workflows/ci.yml
 ```
 
-## Resume bullets
+## 📌 Resume bullets
 
-- Designed an event-driven payment pipeline with KafkaJS and idempotent consumer processing for receipts, audit logs, and real-time notifications, with a synchronous fallback mode for deployments without a hosted broker.
-- Integrated Redis for TTL response caching, cache invalidation, distributed rate limiting, and Socket.IO horizontal-scaling support, with a full in-memory fallback when Redis is unavailable.
-- Built TOTP-based MFA with QR-code enrollment, JWT authentication, bcrypt password hashing, and three-tier RBAC enforced at the middleware level.
-- Developed real-time announcements and a threaded doubt forum using authenticated Socket.IO connections, typing indicators, and presence tracking.
-- Integrated Razorpay order creation and HMAC signature verification, with both synchronous and Kafka-backed payment-completion paths.
-- Built a responsive Admin/Teacher/Student multi-portal SPA in React, Redux Toolkit, and RTK Query with optimistic updates and tag-based cache invalidation.
-- Added targeted Vitest integration coverage for Kafka idempotency, RBAC, payment verification, authentication, and Redis-backed workflows; wired into a GitHub Actions CI pipeline with type-checking, linting, and build verification on every PR.
+- 🚀 Designed an event-driven payment pipeline with **KafkaJS** and idempotent consumer processing for receipts, audit logs, and real-time notifications, with a synchronous fallback mode for deployments without a hosted broker.
+- ⚡ Integrated **Redis** for TTL response caching, cache invalidation, distributed rate limiting, and Socket.IO horizontal-scaling support, with a full in-memory fallback when Redis is unavailable.
+- 🔐 Built **TOTP-based MFA** with QR-code enrollment, JWT authentication, bcrypt password hashing, and three-tier RBAC enforced at the middleware level.
+- 💬 Developed real-time announcements and a threaded doubt forum using authenticated **Socket.IO** connections, typing indicators, and presence tracking.
+- 💳 Integrated **Razorpay** order creation and HMAC signature verification, with both synchronous and Kafka-backed payment-completion paths.
+- 🎨 Built a responsive Admin/Teacher/Student multi-portal SPA in **React, Redux Toolkit, and RTK Query** with optimistic updates and tag-based cache invalidation.
+- ✅ Added targeted **Vitest** integration coverage for Kafka idempotency, RBAC, payment verification, authentication, and Redis-backed workflows; wired into a **GitHub Actions** CI pipeline with type-checking, linting, and build verification on every PR.
