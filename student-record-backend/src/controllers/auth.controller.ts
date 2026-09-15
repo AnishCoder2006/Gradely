@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import otplib, { authenticator as otpAuth } from 'otplib';
 import QRCode from 'qrcode';
 import User, { UserRole } from '../models/User';
+import Student from '../models/Student';
 import logger from '../config/logger';
 
 // Fallback to support both default and named imports across otplib versions
@@ -54,6 +55,9 @@ export class AuthController {
       });
 
       const token = generateToken(String(user._id), user.role);
+      const student = user.role === 'student'
+        ? await Student.findOne({ userId: user._id }).select('status')
+        : null;
 
       res.status(201).json({
         success: true,
@@ -65,6 +69,7 @@ export class AuthController {
             name: user.name,
             email: user.email,
             role: user.role,
+            approvalStatus: student?.status ?? 'pending',
           },
         },
       });
@@ -126,6 +131,9 @@ export class AuthController {
       }
 
       const token = generateToken(String(user._id), user.role);
+      const student = user.role === 'student'
+        ? await Student.findOne({ userId: user._id }).select('status')
+        : null;
 
       res.status(200).json({
         success: true,
@@ -138,6 +146,7 @@ export class AuthController {
             email: user.email,
             role: user.role,
             mfaEnabled: user.mfaEnabled || false,
+            approvalStatus: student?.status ?? 'pending',
           },
         },
       });

@@ -13,11 +13,13 @@ export interface AuthUser {
   email: string;
   mfaEnabled?: boolean;
   role: UserRole;
+  approvalStatus?: 'pending' | 'active' | 'inactive' | 'graduated';
 }
 
 export interface LoginResponse {
   mfaRequired?: boolean;
   email?: string;
+  approvalStatus?: AuthUser['approvalStatus'];
 }
 
 interface AuthContextType {
@@ -65,7 +67,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     persist(json.data.token, json.data.user);
-    return { mfaRequired: false };
+    return { mfaRequired: false, approvalStatus: json.data.user.approvalStatus };
   }, [persist]);
 
   const verifyMfa = useCallback(async (email: string, code: string) => {

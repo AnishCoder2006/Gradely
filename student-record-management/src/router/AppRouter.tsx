@@ -42,6 +42,9 @@ const ProtectedLayout = ({ children, roles }: { children: React.ReactNode; roles
   const { isAuthenticated, isLoading, user } = useAuth();
   if (isLoading) return <AuthSkeleton />;
   if (!isAuthenticated) return <Navigate to="/auth" replace />;
+  if (user?.role === 'student' && user.approvalStatus !== 'active') {
+    return <Navigate to="/pending" replace />;
+  }
   if (roles && user && !roles.includes(user.role)) return <Navigate to="/" replace />;
   return <AppLayout>{children}</AppLayout>;
 };
