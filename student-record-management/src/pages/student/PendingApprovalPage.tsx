@@ -1,9 +1,16 @@
 import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { Clock, Mail } from 'lucide-react';
 
 // Shown to students who are not yet approved by admin
 const PendingApprovalPage = () => {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSignOut = () => {
+    logout();
+    navigate('/auth', { replace: true });
+  };
 
   return (
     <div style={{
@@ -123,7 +130,7 @@ const PendingApprovalPage = () => {
         <button
           className="btn btn-secondary"
           style={{ width: '100%', justifyContent: 'center', fontSize: 13 }}
-          onClick={logout}
+          onClick={handleSignOut}
         >
           <span>Sign Out</span>
         </button>
