@@ -1,6 +1,6 @@
 import rateLimit from 'express-rate-limit';
 import RedisStore from 'rate-limit-redis';
-import { getRedisClient, isRedisReady } from '../services/redis.service';
+import { getRedisClient, getRedisKeyPrefix, isRedisReady } from '../services/redis.service';
 
 function createRedisStore(prefix: string) {
   if (isRedisReady()) {
@@ -9,7 +9,7 @@ function createRedisStore(prefix: string) {
       return new RedisStore({
         // @ts-ignore
         sendCommand: (...args: string[]) => client.sendCommand(args),
-        prefix: `rl:${prefix}:`,
+        prefix: `${getRedisKeyPrefix()}rl:${prefix}:`,
       });
     }
   }
