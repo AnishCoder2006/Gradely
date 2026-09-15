@@ -254,6 +254,8 @@ export const baseApi = createApi({
           Object.entries(params).filter(([, value]) => value !== undefined && value !== '' && value !== null)
         ) as Record<string, string | number>,
       }),
+      transformResponse: (response: unknown): StudentListResponse =>
+        Array.isArray(response) ? { data: response } : response as StudentListResponse,
       providesTags: [{ type: 'Student', id: 'LIST' }],
     }),
 

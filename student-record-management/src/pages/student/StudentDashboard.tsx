@@ -16,12 +16,12 @@ const month = (date: string) => new Intl.DateTimeFormat('en', { month: 'short' }
 export default function StudentDashboard() {
   const { user } = useAuth();
   const { data: studentsData, error: e1 } = useGetStudentsQuery({});
-  const { data: coursesData, error: e2 } = useGetCoursesQuery();
-  const { data: gradesData, error: e3 } = useGetGradesQuery();
-  const { data: attendanceData, error: e4 } = useGetAttendanceQuery();
-  const { data: paymentsData, error: e5 } = useGetMyPaymentsQuery();
-
   const student = studentsData?.data?.[0];
+  const { data: coursesData, error: e2 } = useGetCoursesQuery(undefined, { skip: !student });
+  const { data: gradesData, error: e3 } = useGetGradesQuery(undefined, { skip: !student });
+  const { data: attendanceData, error: e4 } = useGetAttendanceQuery(undefined, { skip: !student });
+  const { data: paymentsData, error: e5 } = useGetMyPaymentsQuery(undefined, { skip: !student });
+
   const _coursesArr = Array.isArray(coursesData) ? coursesData : [];
   const courses = student?.courseIds?.length && _coursesArr.length ? _coursesArr.filter(c => student.courseIds.includes(c._id)) : _coursesArr;
   const grades = Array.isArray(gradesData) ? gradesData : [];
