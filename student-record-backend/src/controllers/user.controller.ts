@@ -21,19 +21,19 @@ export class UserController {
         const data = users.map(u => {
           const record = studentRecords.find(
             s => String(s.userId) === String(u._id) ||
-                 s.email === u.email
+              s.email === u.email
           );
           return {
-            _id:         String(u._id),
-            name:        u.name,
-            email:       u.email,
-            role:        u.role,
-            isActive:    u.isActive,
-            createdAt:   u.createdAt,
+            _id: String(u._id),
+            name: u.name,
+            email: u.email,
+            role: u.role,
+            isActive: u.isActive,
+            createdAt: u.createdAt,
             studentRecord: record ? {
-              _id:    String(record._id),
+              _id: String(record._id),
               status: record.status,
-              phone:  record.phone,
+              phone: record.phone,
               gender: record.gender,
             } : null,
           };
@@ -45,11 +45,11 @@ export class UserController {
       res.status(200).json({
         success: true,
         data: users.map(u => ({
-          _id:       String(u._id),
-          name:      u.name,
-          email:     u.email,
-          role:      u.role,
-          isActive:  u.isActive,
+          _id: String(u._id),
+          name: u.name,
+          email: u.email,
+          role: u.role,
+          isActive: u.isActive,
           createdAt: u.createdAt,
         })),
       });
@@ -61,7 +61,9 @@ export class UserController {
   // PATCH /api/users/:id/status
   async updateStatus(req: Request, res: Response, next: NextFunction) {
     try {
-      const { isActive } = req.body;
+      const isActive = typeof req.body.isActive === 'boolean'
+        ? req.body.isActive
+        : req.body.status === 'active';
       const user = await User.findByIdAndUpdate(
         req.params.id,
         { isActive },
