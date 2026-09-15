@@ -74,7 +74,16 @@ const AppRouter = () => {
   return (
     <Routes>
       <Route path="/auth" element={isAuthenticated ? <Navigate to="/" replace /> : <AuthPage />} />
-      <Route path="/pending" element={<PendingApprovalPage />} />
+      <Route
+        path="/pending"
+        element={
+          !isAuthenticated
+            ? <Navigate to="/auth" replace />
+            : user?.role === 'student' && user.approvalStatus !== 'active'
+              ? <PendingApprovalPage />
+              : <Navigate to="/" replace />
+        }
+      />
 
       <Route path="/" element={<ProtectedLayout><RoleRouter /></ProtectedLayout>} />
       <Route path="/settings" element={<ProtectedLayout><SettingsPage /></ProtectedLayout>} />
