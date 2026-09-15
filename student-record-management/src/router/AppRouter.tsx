@@ -20,7 +20,6 @@ import MyProfilePage from '../pages/student/MyProfilePage';
 import MyGradesPage from '../pages/student/MyGradesPage';
 import MyAttendancePage from '../pages/student/MyAttendancePage';
 import MyProgressPage from '../pages/student/MyProgressPage';
-import PendingApprovalPage from '../pages/student/PendingApprovalPage';
 
 import AnnouncementsPage from '../pages/AnnouncementsPage';
 import DoubtsPage from '../pages/DoubtsPage';
@@ -42,9 +41,6 @@ const ProtectedLayout = ({ children, roles }: { children: React.ReactNode; roles
   const { isAuthenticated, isLoading, user } = useAuth();
   if (isLoading) return <AuthSkeleton />;
   if (!isAuthenticated) return <Navigate to="/auth" replace />;
-  if (user?.role === 'student' && user.approvalStatus !== 'active') {
-    return <Navigate to="/pending" replace />;
-  }
   if (roles && user && !roles.includes(user.role)) return <Navigate to="/" replace />;
   return <AppLayout>{children}</AppLayout>;
 };
@@ -68,23 +64,12 @@ const NotFound = () => (
 );
 
 const AppRouter = () => {
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   if (isLoading) return <AuthSkeleton />;
 
   return (
     <Routes>
       <Route path="/auth" element={isAuthenticated ? <Navigate to="/" replace /> : <AuthPage />} />
-      <Route
-        path="/pending"
-        element={
-          !isAuthenticated
-            ? <Navigate to="/auth" replace />
-            : user?.role === 'student' && user.approvalStatus !== 'active'
-              ? <PendingApprovalPage />
-              : <Navigate to="/" replace />
-        }
-      />
-
       <Route path="/" element={<ProtectedLayout><RoleRouter /></ProtectedLayout>} />
       <Route path="/settings" element={<ProtectedLayout><SettingsPage /></ProtectedLayout>} />
 

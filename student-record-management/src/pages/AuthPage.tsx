@@ -59,12 +59,12 @@ const AuthPage = () => {
         if (result?.mfaRequired) {
           setMode('mfa'); // Switch to 2FA verification mode
         } else {
-          navigate(result.approvalStatus === 'active' ? '/' : '/pending');
+          navigate('/');
         }
       } else {
         // Registration
         await register(name, email, password, role);
-        navigate(role === 'student' ? '/pending' : '/');
+        navigate('/');
       }
     } catch (err: any) {
       setError(err.message || 'Something went wrong');

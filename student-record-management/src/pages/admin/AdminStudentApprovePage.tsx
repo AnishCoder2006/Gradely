@@ -58,7 +58,7 @@ const AdminStudentApprovePage = () => {
 
   const filtered = students.filter(s => {
     if (filter === 'all') return true;
-    if (filter === 'pending') return !s.studentRecord && s.isActive;
+    if (filter === 'pending') return s.isActive && (!s.studentRecord || s.studentRecord.status !== 'active');
     if (filter === 'active') return s.studentRecord?.status === 'active';
     if (filter === 'inactive') return !s.isActive || s.studentRecord?.status === 'inactive';
     return true;
@@ -66,7 +66,7 @@ const AdminStudentApprovePage = () => {
 
   const counts = {
     all: students.length,
-    pending: students.filter(s => !s.studentRecord && s.isActive).length,
+    pending: students.filter(s => s.isActive && (!s.studentRecord || s.studentRecord.status !== 'active')).length,
     active: students.filter(s => s.studentRecord?.status === 'active').length,
     inactive: students.filter(s => !s.isActive || s.studentRecord?.status === 'inactive').length,
   };
