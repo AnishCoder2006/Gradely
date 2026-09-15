@@ -10,8 +10,10 @@ import {
   useGetCoursesQuery,
   useGetTeachersQuery,
   useUpdateCourseMutation,
+  useApproveCourseMutation,
+  useRejectCourseMutation,
 } from '../store';
-import { Plus, Edit, Trash2, Search, BookOpen, Users, CheckCircle2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, BookOpen, Users, CheckCircle2, XCircle } from 'lucide-react';
 
 const CoursesPage = () => {
   const { success, error: toastError } = useToastContext();
@@ -35,6 +37,8 @@ const CoursesPage = () => {
   const [createCourse, { isLoading: isCreating }] = useCreateCourseMutation();
   const [updateCourse, { isLoading: isUpdating }] = useUpdateCourseMutation();
   const [deleteCourse, { isLoading: isDeleting }] = useDeleteCourseMutation();
+  const [approveCourse] = useApproveCourseMutation();
+  const [rejectCourse] = useRejectCourseMutation();
 
   if (error) toastError('Failed to load course catalogue.');
 
@@ -85,6 +89,25 @@ const CoursesPage = () => {
       success('Course deleted.');
     } catch {
       toastError('Failed to delete course.');
+    }
+  };
+
+  const handleApprove = async (course: Course) => {
+    try {
+      await approveCourse(course._id).unwrap();
+      success(`"${course.name}" approved.`);
+    } catch (err: any) {
+      toastError(err.message || 'Failed to approve course.');
+    }
+  };
+
+  const handleReject = async (course: Course) => {
+    if (!window.confirm(`Reject "${course.name}"?`)) return;
+    try {
+      await rejectCourse(course._id).unwrap();
+      success(`"${course.name}" rejected.`);
+    } catch (err: any) {
+      toastError(err.message || 'Failed to reject course.');
     }
   };
 
@@ -151,6 +174,14 @@ const CoursesPage = () => {
       header: 'Actions',
       accessor: (c: Course) => (
         <div style={{ display: 'flex', gap: 6 }}>
+          {(c as any).status === 'pending' && <>
+            <button className="btn btn-primary" style={{ padding: '5px 10px', fontSize: 12 }} onClick={() => handleApprove(c)}>
+              <CheckCircle2 size={13} /><span>Approve</span>
+            </button>
+            <button className="btn btn-danger" style={{ padding: '5px 10px', fontSize: 12 }} onClick={() => handleReject(c)}>
+              <XCircle size={13} /><span>Reject</span>
+            </button>
+          </>}
           <button className="btn btn-secondary" style={{ padding: '5px 10px', fontSize: 12 }} onClick={() => handleEdit(c)}>
             <Edit size={13} /><span>Edit</span>
           </button>
