@@ -68,7 +68,7 @@ const NotFound = () => (
 );
 
 const AppRouter = () => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   if (isLoading) return <AuthSkeleton />;
 
   return (
