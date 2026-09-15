@@ -16,10 +16,8 @@ const AdminStudentApprovePage = () => {
 
   const fetchStudents = async () => {
     try {
-      await dispatch(baseApi.endpoints.getTeachers.initiate()).unwrap();
-      // fetch users endpoint directly via store query
-      const response = await dispatch(baseApi.endpoints.getStudents.initiate({})).unwrap();
-      setStudents(response.data || []);
+      const response = await dispatch(baseApi.endpoints.getStudentUsers.initiate()).unwrap();
+      setStudents(response);
     } catch {
       toastError('Failed to load students.');
     } finally {

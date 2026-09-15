@@ -174,10 +174,10 @@ export const axiosBaseQuery =
         const isAuthRoute = url.startsWith('/auth');
         const unwrapped =
           !isAuthRoute &&
-          raw !== null &&
-          typeof raw === 'object' &&
-          'success' in raw &&
-          'data' in raw
+            raw !== null &&
+            typeof raw === 'object' &&
+            'success' in raw &&
+            'data' in raw
             ? raw.data
             : raw;
         return { data: unwrapped };
@@ -293,6 +293,11 @@ export const baseApi = createApi({
 
     getTeachers: builder.query<any[], void>({
       query: () => ({ url: '/users', method: 'GET', params: { role: 'teacher' } }),
+      providesTags: [{ type: 'User', id: 'LIST' }],
+    }),
+
+    getStudentUsers: builder.query<any[], void>({
+      query: () => ({ url: '/users', method: 'GET', params: { role: 'student' } }),
       providesTags: [{ type: 'User', id: 'LIST' }],
     }),
 
