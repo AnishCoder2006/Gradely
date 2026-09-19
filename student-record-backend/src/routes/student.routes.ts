@@ -15,6 +15,11 @@ router.get('/:id', studentController.getById.bind(studentController));
 // a student's own userId, so they can only ever create their own record.
 router.post('/', studentController.create.bind(studentController));
 
+// Student submits their completed profile for admin review.
+// `protect` (applied above via router.use) already ensures the caller
+// is authenticated; ownership is checked inside the controller.
+router.post('/:id/submit-for-approval', studentController.submitForApproval.bind(studentController));
+
 // PUT is allowed for student (their own record, enforced in controller)
 // and admin (any record). Teacher is excluded — teachers manage grades/
 // attendance, not student personal records.

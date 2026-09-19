@@ -206,8 +206,8 @@ export class CourseController {
     } catch (error) { next(error); }
   }
 
-  // POST /api/courses/:id/enroll
-  async enrollStudent(req: Request, res: Response, next: NextFunction) {
+  // POST /api/courses/:id/enroll — teacher admits a student to THEIR course
+  async enrollStudent(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { studentId } = req.body;
       const courseId = req.params.id;
@@ -219,6 +219,24 @@ export class CourseController {
 
       if (!course)   { res.status(404).json({ success: false, message: 'Course not found' });  return; }
       if (!student)  { res.status(404).json({ success: false, message: 'Student not found' }); return; }
+
+      // Only the course's own teacher (or admin) may enroll students
+      if (req.user?.role === 'teacher' && String(course.instructorId) !== String(req.user.id)) {
+        res.status(403).json({ success: false, message: 'You can only enroll students in your own courses' });
+        return;
+      }
+
+      // Verify the course is active (admin-approved)
+      if (course.status !== 'active') {
+        res.status(400).json({ success: false, message: 'Only active (admin-approved) courses can accept enrollments' });
+        return;
+      }
+
+      // Only admit students who have been approved by admin
+      if (student.status !== 'active') {
+        res.status(400).json({ success: false, message: 'Only admin-approved students can be enrolled in courses' });
+        return;
+      }
 
       if (course.enrolledStudents >= course.maxStudents) {
         res.status(400).json({ success: false, message: 'Course is at full capacity' });
@@ -240,10 +258,19 @@ export class CourseController {
   }
 
   // DELETE /api/courses/:id/enroll
-  async unenrollStudent(req: Request, res: Response, next: NextFunction) {
+  async unenrollStudent(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { studentId } = req.body;
       const courseId = req.params.id;
+
+      const course = await Course.findById(courseId);
+      if (!course) { res.status(404).json({ success: false, message: 'Course not found' }); return; }
+
+      // Only the course's own teacher (or admin) may unenroll students
+      if (req.user?.role === 'teacher' && String(course.instructorId) !== String(req.user.id)) {
+        res.status(403).json({ success: false, message: 'You can only remove students from your own courses' });
+        return;
+      }
 
       await Promise.all([
         Student.findByIdAndUpdate(studentId, { $pull: { courseIds: courseId } }),
@@ -255,9 +282,18 @@ export class CourseController {
   }
 
   // GET /api/courses/:id/students
-  async getEnrolledStudents(req: Request, res: Response, next: NextFunction) {
+  async getEnrolledStudents(req: AuthRequest, res: Response, next: NextFunction) {
     try {
-      const students = await Student.find({ courseIds: req.params.id });
+      const course = await Course.findById(req.params.id);
+      if (!course) { res.status(404).json({ success: false, message: 'Course not found' }); return; }
+
+      // Teachers can only view enrolled students for their own courses
+      if (req.user?.role === 'teacher' && String(course.instructorId) !== String(req.user.id)) {
+        res.status(403).json({ success: false, message: 'You can only view students in your own courses' });
+        return;
+      }
+
+      const students = await Student.find({ courseIds: req.params.id, status: 'active' });
       res.status(200).json({ success: true, data: students });
     } catch (error) { next(error); }
   }

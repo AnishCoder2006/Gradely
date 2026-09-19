@@ -75,7 +75,10 @@ const TeacherMyStudentsPage = () => {
 
   /* Search state */
   const [query, setQuery] = useState('');
-  const { data: searchData, isFetching: searching } = useGetStudentsQuery({ search: query }, { skip: !query });
+  const { data: searchData, isFetching: searching } = useGetStudentsQuery(
+    { search: query, status: 'active' }, // only admin-approved students
+    { skip: !query },
+  );
   const searchResults = searchData?.data ?? [];
   const [searched, setSearched] = useState(false);
 
@@ -107,7 +110,10 @@ const TeacherMyStudentsPage = () => {
   /* ── Load teacher's courses ──────────────────────────── */
   useEffect(() => {
     if (coursesData) {
-      const mine = coursesData.filter(c =>
+      // Filter by instructorId (stable ID) not name (mutable string)
+      const mine = (Array.isArray(coursesData) ? coursesData : []).filter(c =>
+        c.instructorId === user?.id ||
+        // Fallback: name match for older records that may not have instructorId
         c.instructor?.toLowerCase() === user?.name?.toLowerCase()
       );
       setMyCourses(mine);

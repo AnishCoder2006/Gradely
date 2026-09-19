@@ -460,6 +460,17 @@ export const baseApi = createApi({
         { type: 'Doubt', id: 'LIST' },
       ],
     }),
+    submitForApproval: builder.mutation<Student, string>({
+  query: (id) => ({
+    url: `/students/${id}/submit-for-approval`,
+    method: 'POST',
+  }),
+  invalidatesTags: (_result, _error, id) => [
+    { type: 'Student', id },
+    { type: 'Student', id: 'LIST' },
+    { type: 'User', id: 'LIST' },
+  ],
+}),
 
     closeDoubt: builder.mutation<Doubt, string>({
       query: (id) => ({ url: `/doubts/${id}/close`, method: 'PATCH', data: {} }),
@@ -591,7 +602,7 @@ export const baseApi = createApi({
         method: 'PATCH',
         data: { status },
       }),
-      invalidatesTags: [{ type: 'User', id: 'LIST' }],
+      invalidatesTags: [{ type: 'User', id: 'LIST' }, { type: 'Student', id: 'LIST' }],
     }),
   }),
 });
@@ -645,6 +656,7 @@ export const {
   useSetupMfaQuery,
   useEnableMfaMutation,
   useUpdateUserStatusMutation,
+  useSubmitForApprovalMutation
 } = baseApi;
 
 export type { AuthEnvelope };

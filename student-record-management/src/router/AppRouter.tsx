@@ -20,6 +20,7 @@ import MyProfilePage from '../pages/student/MyProfilePage';
 import MyGradesPage from '../pages/student/MyGradesPage';
 import MyAttendancePage from '../pages/student/MyAttendancePage';
 import MyProgressPage from '../pages/student/MyProgressPage';
+import PendingApprovalPage from '../pages/student/PendingApprovalPage';
 
 import AnnouncementsPage from '../pages/AnnouncementsPage';
 import DoubtsPage from '../pages/DoubtsPage';
@@ -45,11 +46,32 @@ const ProtectedLayout = ({ children, roles }: { children: React.ReactNode; roles
   return <AppLayout>{children}</AppLayout>;
 };
 
+// Looser guard used only for the profile pages (/my-profile,
+// /my-profile/setup). A student needs access here regardless of
+// approval status — draft students are completing their profile,
+// pending students may want to review what they submitted, and only
+// a rejected (inactive) student is turned away entirely.
+const ProfileGuard = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, isLoading, user } = useAuth();
+  if (isLoading) return <AuthSkeleton />;
+  if (!isAuthenticated) return <Navigate to="/auth" replace />;
+  if (user?.role !== 'student') return <Navigate to="/" replace />;
+  if (user?.approvalStatus === 'inactive') return <Navigate to="/pending-approval" replace />;
+  return <AppLayout>{children}</AppLayout>;
+};
+
+// Strict guard for everything else student-only — requires full
+// ('active') approval. Draft students are redirected to finish their
+// profile instead of hitting the generic pending screen.
 const StudentGuard = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isLoading, user } = useAuth();
   if (isLoading) return <AuthSkeleton />;
   if (!isAuthenticated) return <Navigate to="/auth" replace />;
   if (user?.role !== 'student') return <Navigate to="/" replace />;
+  if (user?.approvalStatus !== 'active') {
+    if (user?.approvalStatus === 'draft') return <Navigate to="/my-profile/setup" replace />;
+    return <Navigate to="/pending-approval" replace />;
+  }
   return <AppLayout>{children}</AppLayout>;
 };
 
@@ -70,6 +92,14 @@ const AppRouter = () => {
   return (
     <Routes>
       <Route path="/auth" element={isAuthenticated ? <Navigate to="/" replace /> : <AuthPage />} />
+
+      {/* Pending-approval page: available to all logged-in students regardless of status */}
+      <Route path="/pending-approval" element={
+        isAuthenticated
+          ? <PendingApprovalPage />
+          : <Navigate to="/auth" replace />
+      } />
+
       <Route path="/" element={<ProtectedLayout><RoleRouter /></ProtectedLayout>} />
       <Route path="/settings" element={<ProtectedLayout><SettingsPage /></ProtectedLayout>} />
 
@@ -90,9 +120,11 @@ const AppRouter = () => {
       <Route path="/my-courses" element={<ProtectedLayout roles={['teacher']}><MyCoursesPage /></ProtectedLayout>} />
       <Route path="/request-course" element={<ProtectedLayout roles={['teacher']}><TeacherRequestCoursePage /></ProtectedLayout>} />
 
-      {/* Student only */}
-      <Route path="/my-profile" element={<StudentGuard><MyProfilePage /></StudentGuard>} />
-      <Route path="/my-profile/setup" element={<StudentGuard><MyProfilePage setup /></StudentGuard>} />
+      {/* Student only — profile pages use the looser guard since draft/
+          pending students still need to reach them to complete/review
+          their profile before they're fully approved */}
+      <Route path="/my-profile" element={<ProfileGuard><MyProfilePage /></ProfileGuard>} />
+      <Route path="/my-profile/setup" element={<ProfileGuard><MyProfilePage setup /></ProfileGuard>} />
       <Route path="/my-grades" element={<StudentGuard><MyGradesPage /></StudentGuard>} />
       <Route path="/my-progress" element={<StudentGuard><MyProgressPage /></StudentGuard>} />
       <Route path="/my-attendance" element={<StudentGuard><MyAttendancePage /></StudentGuard>} />

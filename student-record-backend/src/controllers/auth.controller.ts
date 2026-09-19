@@ -6,7 +6,6 @@ import User, { UserRole } from '../models/User';
 import Student from '../models/Student';
 import logger from '../config/logger';
 
-// Fallback to support both default and named imports across otplib versions
 const authenticator = otpAuth || (otplib && otplib.authenticator);
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production';
@@ -47,21 +46,51 @@ export class AuthController {
         return;
       }
 
+      const assignedRole: UserRole = (role as UserRole) || 'student';
+
+      // Students start as inactive (pending admin approval later, once
+      // they've completed and submitted their profile). Admins and
+      // teachers are active by default.
+      const isActive = assignedRole !== 'student';
+
       const user = await User.create({
         name,
         email,
         password,
-        role: role || 'student',
+        role: assignedRole,
+        isActive,
       });
 
+      // ── Auto-create a placeholder Student record so the profile-setup
+      //    page has a record to attach real data to. Status starts as
+      //    'draft' — NOT 'pending' — because the student hasn't completed
+      //    or submitted their profile yet. Only submitForApproval() moves
+      //    it to 'pending', which is what makes it visible to Admin. ──
+      let student: any = null;
+      if (assignedRole === 'student') {
+        try {
+          student = await Student.create({
+            userId: user._id,
+            name: user.name,
+            email: user.email,
+            phone: 'N/A',
+            dateOfBirth: new Date('2000-01-01'),
+            gender: 'other',
+            address: 'Pending',
+            status: 'draft',
+          });
+        } catch (err) {
+          logger.warn({ err, userId: String(user._id) }, 'placeholder_student_record_create_failed');
+        }
+      }
+
       const token = generateToken(String(user._id), user.role);
-      const student = user.role === 'student'
-        ? await Student.findOne({ userId: user._id }).select('status')
-        : null;
 
       res.status(201).json({
         success: true,
-        message: 'Account created successfully',
+        message: assignedRole === 'student'
+          ? 'Account created. Please complete your profile to submit it for admin approval.'
+          : 'Account created successfully',
         data: {
           token,
           user: {
@@ -69,7 +98,7 @@ export class AuthController {
             name: user.name,
             email: user.email,
             role: user.role,
-            approvalStatus: student?.status ?? 'pending',
+            approvalStatus: student?.status ?? (assignedRole === 'student' ? 'draft' : 'active'),
           },
         },
       });
@@ -99,7 +128,7 @@ export class AuthController {
         return;
       }
 
-      if (!user.isActive) {
+      if (!user.isActive && user.role !== 'student') {
         res.status(403).json({
           success: false,
           message: 'Your account has been deactivated',
@@ -116,7 +145,6 @@ export class AuthController {
         return;
       }
 
-      // Check if user is Admin or Teacher and has MFA enabled
       const isPrivileged = user.role === 'admin' || user.role === 'teacher';
       if (isPrivileged && user.mfaEnabled) {
         res.status(200).json({
@@ -146,7 +174,7 @@ export class AuthController {
             email: user.email,
             role: user.role,
             mfaEnabled: user.mfaEnabled || false,
-            approvalStatus: student?.status ?? 'pending',
+            approvalStatus: user.role === 'student' ? (student?.status ?? 'draft') : undefined,
           },
         },
       });
@@ -155,7 +183,6 @@ export class AuthController {
     }
   }
 
-  // Verify 6-digit TOTP code during Login (for Admins & Teachers)
   async verifyMfaLogin(req: Request, res: Response, next: NextFunction) {
     try {
       const { email, code } = req.body;
@@ -207,7 +234,6 @@ export class AuthController {
     }
   }
 
-  // Generate QR code for MFA setup (Only for Teachers & Admins)
   async setupMfa(req: Request, res: Response, next: NextFunction) {
     try {
       const authUser = (req as any).user;
@@ -233,7 +259,6 @@ export class AuthController {
         return;
       }
 
-      // Generate secret & QR Code
       const secret = authenticator.generateSecret();
       user.mfaSecret = secret;
       await user.save();
@@ -255,7 +280,6 @@ export class AuthController {
     }
   }
 
-  // Verify code and officially enable MFA on the account
   async enableMfa(req: Request, res: Response, next: NextFunction) {
     try {
       const { code } = req.body;
@@ -307,6 +331,11 @@ export class AuthController {
         res.status(404).json({ success: false, message: 'User not found' });
         return;
       }
+
+      const student = user.role === 'student'
+        ? await Student.findOne({ userId: user._id }).select('status')
+        : null;
+
       res.status(200).json({
         success: true,
         data: {
@@ -315,6 +344,7 @@ export class AuthController {
           email: user.email,
           role: user.role,
           mfaEnabled: user.mfaEnabled || false,
+          approvalStatus: user.role === 'student' ? (student?.status ?? 'draft') : undefined,
         },
       });
     } catch (error) {

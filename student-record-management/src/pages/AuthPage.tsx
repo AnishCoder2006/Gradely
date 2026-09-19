@@ -7,24 +7,9 @@ import { Eye, EyeOff, GraduationCap, BookOpen, Shield, ArrowRight, KeyRound, Arr
 type Mode = 'login' | 'register' | 'mfa';
 
 const ROLES: { value: UserRole; label: string; icon: React.ElementType; color: string }[] = [
-  {
-    value: 'student',
-    label: 'Student',
-    icon: GraduationCap,
-    color: '#22c55e',
-  },
-  {
-    value: 'teacher',
-    label: 'Teacher',
-    icon: BookOpen,
-    color: '#3b82f6',
-  },
-  {
-    value: 'admin',
-    label: 'Admin',
-    icon: Shield,
-    color: '#a855f7',
-  },
+  { value: 'student', label: 'Student', icon: GraduationCap, color: '#22c55e' },
+  { value: 'teacher', label: 'Teacher', icon: BookOpen, color: '#3b82f6' },
+  { value: 'admin', label: 'Admin', icon: Shield, color: '#a855f7' },
 ];
 
 const AuthPage = () => {
@@ -50,21 +35,28 @@ const AuthPage = () => {
 
     try {
       if (mode === 'mfa') {
-        // Step 2: Verify 6-digit 2FA code
         await verifyMfa(email, mfaCode);
         navigate('/');
       } else if (mode === 'login') {
-        // Step 1: Standard credentials check
         const result = await login(email, password);
         if (result?.mfaRequired) {
-          setMode('mfa'); // Switch to 2FA verification mode
+          setMode('mfa');
+        } else if (
+          result?.role === 'student' &&
+          result?.approvalStatus &&
+          result.approvalStatus !== 'active'
+        ) {
+          navigate('/my-profile/setup');
         } else {
           navigate('/');
         }
       } else {
-        // Registration
         await register(name, email, password, role);
-        navigate('/');
+        if (role === 'student') {
+          navigate('/pending-approval');
+        } else {
+          navigate('/');
+        }
       }
     } catch (err: any) {
       setError(err.message || 'Something went wrong');
@@ -112,7 +104,6 @@ const AuthPage = () => {
       overflow: 'hidden',
     }}>
 
-      {/* Background Decorative Glows */}
       <div style={{
         position: 'absolute', top: '-15%', left: '50%', transform: 'translateX(-50%)',
         width: '800px', height: '500px', borderRadius: '50%',
@@ -139,7 +130,6 @@ const AuthPage = () => {
         zIndex: 1,
       }}>
 
-        {/* Brand Header */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div style={{
             width: 56, height: 56, borderRadius: 16,
@@ -177,7 +167,6 @@ const AuthPage = () => {
           </p>
         </div>
 
-        {/* Auth Glass Card */}
         <div style={{
           backgroundColor: isDark ? 'rgba(18, 20, 29, 0.5)' : 'rgba(255, 255, 255, 0.7)',
           backdropFilter: 'blur(20px)',
@@ -190,7 +179,6 @@ const AuthPage = () => {
             : '0 20px 50px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 1)',
         }}>
 
-          {/* Mode Switcher (Hidden in MFA Mode) */}
           {mode !== 'mfa' && (
             <div style={{
               display: 'grid',
@@ -233,7 +221,6 @@ const AuthPage = () => {
           <form onSubmit={handleSubmit}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-              {/* Error Banner */}
               {error && (
                 <div style={{
                   padding: '12px 14px',
@@ -248,7 +235,6 @@ const AuthPage = () => {
                 </div>
               )}
 
-              {/* MFA 6-Digit Code Input */}
               {mode === 'mfa' ? (
                 <div>
                   <p style={{
@@ -285,7 +271,6 @@ const AuthPage = () => {
                 </div>
               ) : (
                 <>
-                  {/* Full Name (Register Only) */}
                   {mode === 'register' && (
                     <div>
                       <label style={labelStyle}>Full Name</label>
@@ -307,7 +292,6 @@ const AuthPage = () => {
                     </div>
                   )}
 
-                  {/* Email */}
                   <div>
                     <label style={labelStyle}>Email Address</label>
                     <input
@@ -328,7 +312,6 @@ const AuthPage = () => {
                     />
                   </div>
 
-                  {/* Password */}
                   <div>
                     <label style={labelStyle}>Password</label>
                     <div style={{ position: 'relative' }}>
@@ -366,7 +349,6 @@ const AuthPage = () => {
                     </div>
                   </div>
 
-                  {/* Role Cards Selector (Register Only) */}
                   {mode === 'register' && (
                     <div>
                       <label style={labelStyle}>Select Role</label>
@@ -423,7 +405,6 @@ const AuthPage = () => {
                 </>
               )}
 
-              {/* Submit Button */}
               <button
                 type="submit"
                 disabled={loading}
@@ -474,7 +455,6 @@ const AuthPage = () => {
             </div>
           </form>
 
-          {/* Switch Prompt or Back to Login */}
           <div style={{
             textAlign: 'center',
             fontSize: 12,
@@ -528,7 +508,6 @@ const AuthPage = () => {
 
         </div>
 
-        {/* Footer */}
         <p style={{
           textAlign: 'center', fontSize: 11,
           color: 'var(--text-muted)', marginTop: 20,

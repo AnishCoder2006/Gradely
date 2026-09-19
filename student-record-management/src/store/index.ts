@@ -55,6 +55,7 @@ export {
     useSetupMfaQuery,
     useEnableMfaMutation,
     useUpdateUserStatusMutation,
+    useSubmitForApprovalMutation
 } from './baseApi';
 export type {
     AuthEnvelope,

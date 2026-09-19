@@ -9,7 +9,7 @@ export interface IStudent extends Document {
   gender: 'male' | 'female' | 'other';
   address: string;
   enrollmentDate: Date;
-  status: 'pending' | 'active' | 'inactive' | 'graduated';
+  status: 'draft' | 'pending' | 'active' | 'inactive' | 'graduated';
   courseIds: string[];
   gpa?: number;
   createdAt: Date;
@@ -32,8 +32,12 @@ const StudentSchema = new Schema<IStudent>(
     enrollmentDate: { type: Date, default: Date.now },
     status: {
       type: String,
-      enum: ['pending', 'active', 'inactive', 'graduated'],
-      default: 'pending', // ✅ was 'active' — now requires admin approval
+      // 'draft'   — registered, profile not yet completed/submitted
+      // 'pending' — profile complete, submitted, awaiting admin decision
+      // 'active'  — admin approved
+      // 'inactive'— admin rejected
+      enum: ['draft', 'pending', 'active', 'inactive', 'graduated'],
+      default: 'draft',
     },
     courseIds: [{ type: String }],
     gpa: { type: Number, min: 0, max: 4.0 },

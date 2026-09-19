@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useToastContext } from '../../context/ToastContext';
 import { useUpdateUserStatusMutation, baseApi, useAppDispatch } from '../../store';
-import { CheckCircle, XCircle, Clock, Users, UserCheck, UserX } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Users, UserCheck, UserX, FileEdit } from 'lucide-react';
 import { useEffect } from 'react';
 
 const AdminStudentApprovePage = () => {
@@ -16,7 +16,7 @@ const AdminStudentApprovePage = () => {
 
   const fetchStudents = async () => {
     try {
-      const response = await dispatch(baseApi.endpoints.getStudentUsers.initiate()).unwrap();
+      const response = await dispatch(baseApi.endpoints.getStudentUsers.initiate(undefined, { forceRefetch: true })).unwrap();
       setStudents(response);
     } catch {
       toastError('Failed to load students.');
@@ -54,9 +54,17 @@ const AdminStudentApprovePage = () => {
     }
   };
 
+  // A student is only actionable by admin once they've submitted
+  // (status === 'pending'). 'draft' students haven't finished/submitted
+  // their profile yet and are shown as informational only — no
+  // Approve/Reject buttons, since approving an incomplete profile was
+  // the earlier bug.
+  const isDraft = (s: any) => !s.studentRecord || s.studentRecord.status === 'draft';
+  const isSubmittedPending = (s: any) => s.studentRecord?.status === 'pending';
+
   const filtered = students.filter(s => {
     if (filter === 'all') return true;
-    if (filter === 'pending') return s.isActive && (!s.studentRecord || s.studentRecord.status !== 'active');
+    if (filter === 'pending') return isSubmittedPending(s);
     if (filter === 'active') return s.studentRecord?.status === 'active';
     if (filter === 'inactive') return !s.isActive || s.studentRecord?.status === 'inactive';
     return true;
@@ -64,17 +72,18 @@ const AdminStudentApprovePage = () => {
 
   const counts = {
     all: students.length,
-    pending: students.filter(s => s.isActive && (!s.studentRecord || s.studentRecord.status !== 'active')).length,
+    pending: students.filter(isSubmittedPending).length,
     active: students.filter(s => s.studentRecord?.status === 'active').length,
     inactive: students.filter(s => !s.isActive || s.studentRecord?.status === 'inactive').length,
   };
 
   const getStatusInfo = (s: any) => {
-    if (!s.isActive) return { label: 'Rejected', badge: 'badge-red', icon: UserX };
-    if (!s.studentRecord) return { label: 'Pending Profile', badge: 'badge-yellow', icon: Clock };
+    if (!s.isActive && s.studentRecord?.status === 'inactive') return { label: 'Rejected', badge: 'badge-red', icon: UserX };
+    if (isDraft(s)) return { label: 'Profile Incomplete', badge: 'badge-gray', icon: FileEdit };
+    if (s.studentRecord?.status === 'pending') return { label: 'Pending Review', badge: 'badge-yellow', icon: Clock };
     if (s.studentRecord?.status === 'active') return { label: 'Approved', badge: 'badge-green', icon: UserCheck };
     if (s.studentRecord?.status === 'inactive') return { label: 'Inactive', badge: 'badge-red', icon: UserX };
-    return { label: 'Pending', badge: 'badge-yellow', icon: Clock };
+    return { label: 'Unknown', badge: 'badge-gray', icon: Clock };
   };
 
   return (
@@ -90,7 +99,7 @@ const AdminStudentApprovePage = () => {
       <div className="bento-4 stagger animate-fade-up">
         {[
           { label: 'Total', value: counts.all, color: '#3b82f6', icon: Users },
-          { label: 'Pending', value: counts.pending, color: '#eab308', icon: Clock },
+          { label: 'Pending Review', value: counts.pending, color: '#eab308', icon: Clock },
           { label: 'Approved', value: counts.active, color: '#22c55e', icon: UserCheck },
           { label: 'Rejected', value: counts.inactive, color: '#dc2626', icon: UserX },
         ].map((s, i) => (
@@ -141,6 +150,7 @@ const AdminStudentApprovePage = () => {
             {filtered.map((s, i) => {
               const status = getStatusInfo(s);
               const isProcessing = processing === s._id;
+              const draft = isDraft(s);
               return (
                 <div key={s._id} className="flex-between" style={{
                   padding: '14px 22px',
@@ -160,20 +170,24 @@ const AdminStudentApprovePage = () => {
                         <span className={`badge ${status.badge}`} style={{ fontSize: 10 }}>{status.label}</span>
                       </div>
                       <p className="text-caption" style={{ margin: 0 }}>{s.email}</p>
-                      {!s.studentRecord && <p style={{ fontSize: 11, color: 'var(--warning)', margin: 0 }}>⚠ Profile not created yet</p>}
+                      {draft && <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0 }}>Waiting for student to complete and submit their profile</p>}
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <p className="text-caption" style={{ margin: 0 }}>
                       {new Date(s.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </p>
-                    {s.studentRecord?.status !== 'active' && (
+                    {/* Only show Approve/Reject once the student has actually
+                        submitted (status === 'pending'). Draft students can't
+                        be approved — this is what prevents admin from
+                        approving an incomplete profile. */}
+                    {!draft && s.studentRecord?.status !== 'active' && (
                       <button className="btn btn-primary" style={{ fontSize: 11, padding: '5px 12px' }}
                         onClick={() => handleApprove(s._id, s.name)} disabled={isProcessing}>
                         <CheckCircle size={12} /><span>{isProcessing ? '...' : 'Approve'}</span>
                       </button>
                     )}
-                    {s.isActive && (
+                    {!draft && s.isActive && (
                       <button className="btn btn-danger" style={{ fontSize: 11, padding: '5px 12px' }}
                         onClick={() => handleReject(s._id, s.name)} disabled={isProcessing}>
                         <XCircle size={12} /><span>Reject</span>

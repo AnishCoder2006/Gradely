@@ -68,11 +68,26 @@ export class GradeController {
         return;
       }
 
+      if (req.user?.role === 'teacher') {
+        const Course = (await import('../models/Course')).default;
+        const course = await Course.findById(courseId);
+        if (!course) {
+          res.status(404).json({ success: false, message: 'Course not found' });
+          return;
+        }
+        if (String(course.instructorId) !== String(req.user.id)) {
+          res.status(403).json({
+            success: false,
+            message: 'You can only add grades for your own courses',
+          });
+          return;
+        }
+      }
+
       const newGrade = await Grade.create({
         studentId, courseId, examType, grade, score, semester, remarks,
       });
 
-      // Recalculate GPA only if this was a SEE grade
       if (examType === 'see') {
         await recalculateStudentGPA(String(studentId));
       }
@@ -99,8 +114,26 @@ export class GradeController {
     }
   }
 
+  // ── FIXED: added ownership check. Previously any authenticated
+  //    teacher could update ANY grade regardless of which course it
+  //    belonged to. ──
   async update(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      const existing = await Grade.findById(req.params.id);
+      if (!existing) { res.status(404).json({ success: false, message: 'Grade not found' }); return; }
+
+      if (req.user?.role === 'teacher') {
+        const Course = (await import('../models/Course')).default;
+        const course = await Course.findById(existing.courseId);
+        if (!course || String(course.instructorId) !== String(req.user.id)) {
+          res.status(403).json({
+            success: false,
+            message: 'You can only edit grades for your own courses',
+          });
+          return;
+        }
+      }
+
       const grade = await Grade.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
       if (!grade) { res.status(404).json({ success: false, message: 'Grade not found' }); return; }
 
@@ -121,8 +154,24 @@ export class GradeController {
     } catch (error) { next(error); }
   }
 
+  // ── FIXED: same ownership check added for delete. ──
   async delete(req: AuthRequest, res: Response, next: NextFunction) {
     try {
+      const existing = await Grade.findById(req.params.id);
+      if (!existing) { res.status(404).json({ success: false, message: 'Grade not found' }); return; }
+
+      if (req.user?.role === 'teacher') {
+        const Course = (await import('../models/Course')).default;
+        const course = await Course.findById(existing.courseId);
+        if (!course || String(course.instructorId) !== String(req.user.id)) {
+          res.status(403).json({
+            success: false,
+            message: 'You can only delete grades for your own courses',
+          });
+          return;
+        }
+      }
+
       const grade = await Grade.findByIdAndDelete(req.params.id);
       if (!grade) { res.status(404).json({ success: false, message: 'Grade not found' }); return; }
 
@@ -144,10 +193,6 @@ export class GradeController {
   }
 }
 
-/**
- * Recalculates a student's CGPA based on all their SEE grades,
- * grouped by semester into SGPA, then averaged into CGPA.
- */
 async function recalculateStudentGPA(studentId: string) {
   const seeGrades = await Grade.find({ studentId, examType: 'see' })
     .populate('courseId', 'credits');
@@ -157,7 +202,6 @@ async function recalculateStudentGPA(studentId: string) {
     return;
   }
 
-  // Group by semester
   const bySemester: Record<string, { grade: string; credits: number }[]> = {};
   for (const g of seeGrades) {
     const sem = g.semester;
@@ -168,10 +212,7 @@ async function recalculateStudentGPA(studentId: string) {
     });
   }
 
-  // Calculate SGPA per semester
   const sgpaList = Object.values(bySemester).map(calculateSGPA);
-
-  // CGPA = average of all semester SGPAs
   const cgpa = calculateCGPA(sgpaList);
 
   await Student.findByIdAndUpdate(studentId, { gpa: cgpa });

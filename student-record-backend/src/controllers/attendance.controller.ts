@@ -75,6 +75,24 @@ export class AttendanceController {
         return;
       }
 
+      // ── Course ownership check: teachers can only mark attendance
+      //    for courses they are assigned to. ──
+      if (req.user?.role === 'teacher') {
+        const Course = (await import('../models/Course')).default;
+        const course = await Course.findById(courseId);
+        if (!course) {
+          res.status(404).json({ success: false, message: 'Course not found' });
+          return;
+        }
+        if (String(course.instructorId) !== String(req.user.id)) {
+          res.status(403).json({
+            success: false,
+            message: 'You can only mark attendance for your own courses',
+          });
+          return;
+        }
+      }
+
       const d = new Date(date);
       const results = [];
       let createdCount = 0;
